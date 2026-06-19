@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Script from "next/script";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import {
@@ -11,6 +12,10 @@ import {
   mockLottoDraws,
   calculateOddEven,
   calculateSum,
+  checkHistoricalPerformance,
+  PerformanceReport,
+  getMaxConsecutiveCount,
+  calculateEndingSum,
 } from "@/lib/lotto";
 import {
   Dices,
@@ -32,6 +37,11 @@ import {
   DollarSign,
   TrendingDown,
   User,
+  Sliders,
+  ShieldAlert,
+  CreditCard,
+  QrCode,
+  Award,
 } from "lucide-react";
 
 export default function LottoLabDashboard() {
@@ -56,6 +66,20 @@ export default function LottoLabDashboard() {
   const [generateCount, setGenerateCount] = useState<number>(5);
   const [generatedSets, setGeneratedSets] = useState<number[][]>([]);
   const [justSavedIndex, setJustSavedIndex] = useState<number | null>(null);
+  const [consecutiveLimit, setConsecutiveLimit] = useState<number>(0); // 0: 제한없음
+  const [endingSumPreset, setEndingSumPreset] = useState<"all" | "recommended" | "custom">("all");
+  const [customMinEndingSum, setCustomMinEndingSum] = useState<number>(15);
+  const [customMaxEndingSum, setCustomMaxEndingSum] = useState<number>(35);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
+
+  // 1.5 PRO 멤버십 및 수익화 관련 상태
+  const [isProMember, setIsProMember] = useState<boolean>(false);
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+  const [paymentPending, setPaymentPending] = useState<boolean>(false);
+
+  // 1.6 성적표 모달 관련 상태
+  const [reportTargetSet, setReportTargetSet] = useState<number[] | null>(null);
+  const [performanceReport, setPerformanceReport] = useState<PerformanceReport | null>(null);
 
   // 2. 보관함 상태
   const [savedNumbers, setSavedNumbers] = useState<SavedNumber[]>([]);
@@ -207,6 +231,8 @@ export default function LottoLabDashboard() {
   useEffect(() => {
     loadSavedNumbers();
     loadLottoDraws();
+    const savedPro = localStorage.getItem("lottolab_pro") === "true";
+    setIsProMember(savedPro);
   }, [loadSavedNumbers, loadLottoDraws, user]);
 
   // --- 인증 관련 모달 액션 ---
@@ -266,11 +292,20 @@ export default function LottoLabDashboard() {
       sumRange = { min: customMinSum, max: customMaxSum };
     }
 
+    let endingSumRange = null;
+    if (endingSumPreset === "recommended") {
+      endingSumRange = { min: 15, max: 35 };
+    } else if (endingSumPreset === "custom") {
+      endingSumRange = { min: customMinEndingSum, max: customMaxEndingSum };
+    }
+
     const filters: LottoFilters = {
       fixedNumbers: fixed,
       excludedNumbers: excluded,
       oddEvenRatio,
       sumRange,
+      consecutiveLimit,
+      endingSumRange,
     };
 
     const sets = generateLottoNumbers(generateCount, filters);
@@ -399,8 +434,72 @@ export default function LottoLabDashboard() {
     setGridModes({});
     setOddEvenRatio("all");
     setSumPreset("recommended");
+    setConsecutiveLimit(0);
+    setEndingSumPreset("all");
     setGeneratedSets([]);
   };
+
+  // 성적표 분석 실행
+  const handleOpenReport = (set: number[]) => {
+    setReportTargetSet(set);
+    const report = checkHistoricalPerformance(set, draws);
+    setPerformanceReport(report);
+  };
+  // 멤버십 결제 시뮬레이션
+  const handleInitiatePayment = () => {
+    if (isLocalMode) {
+      setPaymentPending(true);
+      setTimeout(() => {
+        setPaymentPending(false);
+        setIsProMember(true);
+        localStorage.setItem("lottolab_pro", "true");
+        alert("로컬 모드 테스트 결제(990원)가 성공적으로 완료되었습니다! PRO 멤버십이 가동됩니다. 모든 광고가 제거되었습니다.");
+        setShowPaymentModal(false);
+      }, 1500);
+    } else {
+      if (typeof window === "undefined" || !(window as any).IMP) {
+        // SDK 미로드 시 즉시 테스트 연동
+        setPaymentPending(true);
+        setTimeout(() => {
+          setPaymentPending(false);
+          setIsProMember(true);
+          localStorage.setItem("lottolab_pro", "true");
+          alert("포트원 테스트 연동 완료! PRO 멤버십이 연동되었습니다.");
+          setShowPaymentModal(false);
+        }, 1200);
+        return;
+      }
+      
+      const { IMP } = window as any;
+      IMP.init("imp36712356"); // 가맹점 식별코드
+      
+      IMP.request_pay({
+        pg: "kakaopay.TC00000000",
+        pay_method: "card",
+        merchant_uid: `merchant_${new Date().getTime()}`,
+        name: "LottoLab PRO 멤버십 (1개월)",
+        amount: 990,
+        buyer_email: user?.email || "test@lottolab.com",
+        buyer_name: "로또랩후원자",
+      }, function (rsp: any) {
+        if (rsp.success) {
+          setIsProMember(true);
+          localStorage.setItem("lottolab_pro", "true");
+          alert("결제 후원이 완료되었습니다! 감사합니다. PRO 멤버십 기능이 활성화되었습니다.");
+          setShowPaymentModal(false);
+        } else {
+          alert(`결제에 실패하였습니다: ${rsp.error_msg}`);
+        }
+      });
+    }
+  };
+
+  const handleCancelMembership = () => {
+    setIsProMember(false);
+    localStorage.removeItem("lottolab_pro");
+    alert("PRO 멤버십 구독 후원이 해제되었습니다. 다시 일반 등급으로 전환됩니다.");
+  };
+
 
   // --- 시뮬레이터 실행 ---
   const runSimulation = () => {
@@ -593,6 +692,7 @@ export default function LottoLabDashboard() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans antialiased">
+      <Script src="https://cdn.iamport.kr/v1/iamport.js" strategy="lazyOnload" />
       {/* 1. Header & Navigation */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-lg px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -689,6 +789,21 @@ export default function LottoLabDashboard() {
 
           {/* User Auth Info */}
           <div className="flex items-center gap-3">
+            {isProMember ? (
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-amber-950 font-bold border border-yellow-300 shadow-[0_0_10px_rgba(245,158,11,0.3)] hover:scale-105 transition-transform"
+              >
+                <Award className="w-3.5 h-3.5" /> PRO 회원
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)] hover:scale-105 active:scale-95 transition-all"
+              >
+                <DollarSign className="w-3 h-3" /> 후원 (990원)
+              </button>
+            )}
 
             {authLoading ? (
               <span className="text-xs text-slate-500">인증 복구 중...</span>
@@ -923,6 +1038,112 @@ export default function LottoLabDashboard() {
                 </div>
               </div>
 
+              {/* 5. 고급 설정 토글 */}
+              <div className="border-t border-slate-800/80 pt-4">
+                <button
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className="w-full flex items-center justify-between text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-blue-400" />
+                    고급 분석 설정
+                  </span>
+                  <span className="text-[10px] text-blue-400">
+                    {showAdvancedFilters ? "닫기 ▲" : "열기 ▼"}
+                  </span>
+                </button>
+
+                {showAdvancedFilters && (
+                  <div className="mt-4 space-y-4 pt-2">
+                    {/* 연속 번호 제한 */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-400 block mb-1.5 flex justify-between">
+                        <span>연속 번호 제한 (연속 수 차단)</span>
+                        <span className="text-[9px] text-slate-500 font-normal">정밀 조합 필터</span>
+                      </label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { label: "제한 없음", value: 0 },
+                          { label: "2연속 차단", value: 2 },
+                          { label: "3연속 차단", value: 3 },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setConsecutiveLimit(opt.value)}
+                            className={`py-1 rounded text-[10px] font-bold border transition-all ${
+                              consecutiveLimit === opt.value
+                                ? "bg-blue-600/20 border-blue-500 text-blue-400"
+                                : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 끝수 합 필터 */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-400 block mb-1.5">
+                        끝수 합 필터 (일의 자리 합계 제어)
+                      </label>
+                      <div className="flex gap-1.5 mb-2">
+                        <button
+                          onClick={() => setEndingSumPreset("all")}
+                          className={`flex-1 py-1 rounded text-[10px] font-bold border ${
+                            endingSumPreset === "all"
+                              ? "bg-blue-600/20 border-blue-500 text-blue-400"
+                              : "bg-slate-950 border-slate-800 text-slate-500"
+                          }`}
+                        >
+                          제한 없음
+                        </button>
+                        <button
+                          onClick={() => setEndingSumPreset("recommended")}
+                          className={`flex-1 py-1 rounded text-[10px] font-bold border ${
+                            endingSumPreset === "recommended"
+                              ? "bg-blue-600/20 border-blue-500 text-blue-400"
+                              : "bg-slate-950 border-slate-800 text-slate-500"
+                          }`}
+                        >
+                          15 ~ 35 (추천)
+                        </button>
+                        <button
+                          onClick={() => setEndingSumPreset("custom")}
+                          className={`flex-1 py-1 rounded text-[10px] font-bold border ${
+                            endingSumPreset === "custom"
+                              ? "bg-blue-600/20 border-blue-500 text-blue-400"
+                              : "bg-slate-950 border-slate-800 text-slate-500"
+                          }`}
+                        >
+                          직접 입력
+                        </button>
+                      </div>
+
+                      {endingSumPreset === "custom" && (
+                        <div className="flex items-center gap-2 bg-slate-950 p-2 rounded border border-slate-800">
+                          <input
+                            type="number"
+                            value={customMinEndingSum}
+                            onChange={(e) => setCustomMinEndingSum(Number(e.target.value))}
+                            className="w-full bg-slate-900 text-center rounded border border-slate-800 py-0.5 text-xs text-white"
+                            placeholder="최소"
+                          />
+                          <span className="text-slate-500 text-xs">~</span>
+                          <input
+                            type="number"
+                            value={customMaxEndingSum}
+                            onChange={(e) => setCustomMaxEndingSum(Number(e.target.value))}
+                            className="w-full bg-slate-900 text-center rounded border border-slate-800 py-0.5 text-xs text-white"
+                            placeholder="최대"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
             </div>
 
             {/* Right Column: Display Panel */}
@@ -960,69 +1181,92 @@ export default function LottoLabDashboard() {
                       const isSaved = justSavedIndex === idx;
 
                       return (
-                        <div key={idx} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          
-                          {/* 번호 볼 리스트 */}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-bold text-slate-500 w-5">#{idx + 1}</span>
-                            <div className="flex items-center gap-1.5">
-                              {set.map((num) => (
-                                <span
-                                  key={num}
-                                  className={`w-8 h-8 rounded-full border text-xs font-extrabold flex items-center justify-center shadow-inner ${getBallColor(
-                                    num
-                                  )}`}
-                                >
-                                  {num}
+                        <React.Fragment key={idx}>
+                          <div className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            
+                            {/* 번호 볼 리스트 */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] font-bold text-slate-500 w-5">#{idx + 1}</span>
+                              <div className="flex items-center gap-1.5">
+                                {set.map((num) => (
+                                  <span
+                                    key={num}
+                                    className={`w-8 h-8 rounded-full border text-xs font-extrabold flex items-center justify-center shadow-inner ${getBallColor(
+                                      num
+                                    )}`}
+                                  >
+                                    {num}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* 상세 스펙 및 액션 */}
+                            <div className="flex items-center justify-between sm:justify-end gap-4">
+                              <div className="flex gap-2 text-[10px] text-slate-400">
+                                <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800">
+                                  합계: {sum}
                                 </span>
-                              ))}
+                                <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800">
+                                  홀짝: {odd}:{even}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleCopyToClipboard(set)}
+                                  title="복사"
+                                  className="p-1.5 rounded bg-slate-950 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenReport(set)}
+                                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded border bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-all"
+                                >
+                                  성적표
+                                </button>
+                                <button
+                                  onClick={() => handleSaveNumber(set, idx)}
+                                  disabled={isSaved}
+                                  className={`flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded border transition-all ${
+                                    isSaved
+                                      ? "bg-emerald-950 border-emerald-900 text-emerald-400"
+                                      : "bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700"
+                                  }`}
+                                >
+                                  {isSaved ? (
+                                    <>
+                                      <CheckCircle className="w-3 h-3 text-emerald-400" />
+                                      저장됨
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Bookmark className="w-3 h-3" />
+                                      보관
+                                    </>
+                                  )}
+                                </button>
+                              </div>
                             </div>
                           </div>
 
-                          {/* 상세 스펙 및 액션 */}
-                          <div className="flex items-center justify-between sm:justify-end gap-4">
-                            <div className="flex gap-2 text-[10px] text-slate-400">
-                              <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800">
-                                합계: {sum}
-                              </span>
-                              <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800">
-                                홀짝: {odd}:{even}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-1.5">
+                          {/* 네이티브 하이브리드 광고 지면 (PRO 멤버가 아닐 때 2번째 또는 3번째 세트 뒤 노출) */}
+                          {!isProMember && (idx + 1) % 3 === 0 && (
+                            <div className="my-3 py-3 px-4 rounded-lg bg-slate-950/60 border border-dashed border-slate-800/80 flex items-center justify-between gap-3 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] px-1.5 py-0.5 bg-slate-900 border border-slate-800 text-slate-500 rounded font-semibold tracking-wider uppercase scale-90">Sponsor</span>
+                                <p className="text-slate-400 text-[11px]">로또랩을 후원하고 모든 배너 광고를 차단하세요! (월 990원)</p>
+                              </div>
                               <button
-                                onClick={() => handleCopyToClipboard(set)}
-                                title="복사"
-                                className="p-1.5 rounded bg-slate-950 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+                                onClick={() => setShowPaymentModal(true)}
+                                className="text-[10px] font-bold text-blue-400 hover:text-blue-300 hover:underline shrink-0"
                               >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleSaveNumber(set, idx)}
-                                disabled={isSaved}
-                                className={`flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded border transition-all ${
-                                  isSaved
-                                    ? "bg-emerald-950 border-emerald-900 text-emerald-400"
-                                    : "bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700"
-                                }`}
-                              >
-                                {isSaved ? (
-                                  <>
-                                    <CheckCircle className="w-3 h-3 text-emerald-400" />
-                                    저장됨
-                                  </>
-                                ) : (
-                                  <>
-                                    <Bookmark className="w-3 h-3" />
-                                    보관
-                                  </>
-                                )}
+                                PRO 가입
                               </button>
                             </div>
-                          </div>
-
-                        </div>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </div>
@@ -1716,6 +1960,38 @@ export default function LottoLabDashboard() {
 
       </main>
 
+      {/* 2.5 Footer Ad Banner (PRO 멤버가 아닐 때 노출) */}
+      {!isProMember && (
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 md:px-8 mb-6">
+          <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden shadow-md">
+            {/* Background glowing effect */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -z-10" />
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-950/60 border border-blue-900/50 rounded-lg text-blue-400 shrink-0">
+                <Sparkles className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="text-left">
+                <span className="text-[9px] px-1.5 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded font-semibold tracking-wider uppercase inline-block mb-1">
+                  SPONSORED ADVERTISEMENT
+                </span>
+                <h4 className="text-xs font-bold text-slate-200">
+                  로또랩 프리미엄 분석 솔루션 - LottoLab PRO
+                </h4>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  한 달 커피값보다 저렴한 990원 후원으로 모든 광고를 영구 제거하고 더욱 정밀한 번호를 생성해보세요.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition-all active:scale-95 shadow-md shadow-blue-600/10 shrink-0"
+            >
+              광고 제거하기 (월 990원)
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 3. Footer */}
       <footer className="bg-slate-950 border-t border-slate-900 py-6 px-6 text-center text-xs text-slate-500 mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -1851,6 +2127,252 @@ export default function LottoLabDashboard() {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* 5. Report Card Modal (역대 당첨 대조 성적표) */}
+      {reportTargetSet && performanceReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl relative">
+            {/* 닫기 버튼 */}
+            <button
+              onClick={() => {
+                setReportTargetSet(null);
+                setPerformanceReport(null);
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-xl font-bold"
+            >
+              &times;
+            </button>
+
+            {/* 타이틀 */}
+            <div className="text-center mb-5">
+              <span className="text-[10px] font-extrabold text-blue-400 px-2 py-0.5 rounded bg-blue-950 border border-blue-900/60 inline-block mb-2 uppercase tracking-wide">
+                HISTORICAL PERFORMANCE
+              </span>
+              <h3 className="text-lg font-bold text-white mb-1">과거 당첨 성적표</h3>
+              <p className="text-xs text-slate-400">
+                선택하신 조합이 역대 실제 당첨 데이터와 부합하는지 분석했습니다.
+              </p>
+            </div>
+
+            {/* 대상 번호 표시 */}
+            <div className="mb-5 p-3.5 bg-slate-950 rounded-lg border border-slate-800 text-center">
+              <span className="text-[10px] text-slate-500 block mb-2">검증 대상 조합</span>
+              <div className="flex justify-center gap-1.5">
+                {reportTargetSet.map((n) => (
+                  <span
+                    key={n}
+                    className={`w-8 h-8 rounded-full border text-xs font-extrabold flex items-center justify-center shadow-md ${getBallColor(
+                      n
+                    )}`}
+                  >
+                    {n}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* 결과 요약 카드 */}
+            <div className="mb-5 bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">역대 최고 당첨 성적</span>
+                <span className={`text-sm font-extrabold px-2.5 py-0.5 rounded border ${
+                  performanceReport.highestRank !== "없음"
+                    ? "bg-emerald-950/60 border-emerald-900 text-emerald-400"
+                    : "bg-slate-900 border-slate-800 text-slate-500"
+                }`}>
+                  {performanceReport.highestRank}
+                </span>
+              </div>
+
+              {performanceReport.highestDrawNo && (
+                <div className="flex items-center justify-between text-xs border-t border-slate-900 pt-2.5">
+                  <span className="text-slate-400">최고 성적 기록 회차</span>
+                  <span className="font-bold text-slate-200">
+                    제 {performanceReport.highestDrawNo}회차 ({performanceReport.highestDate})
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 누적 매칭 통계 */}
+            <div className="space-y-2 mb-6">
+              <span className="text-xs font-bold text-slate-400 block mb-1">역대 회차 매칭 통계</span>
+              <div className="grid grid-cols-5 gap-2 text-center text-xs">
+                <div className="bg-slate-950 p-2 rounded border border-slate-900">
+                  <span className="text-[10px] text-slate-500 block mb-0.5">1등</span>
+                  <span className="font-bold text-amber-400">{performanceReport.counts.first}회</span>
+                </div>
+                <div className="bg-slate-950 p-2 rounded border border-slate-900">
+                  <span className="text-[10px] text-slate-500 block mb-0.5">2등</span>
+                  <span className="font-bold text-blue-400">{performanceReport.counts.second}회</span>
+                </div>
+                <div className="bg-slate-950 p-2 rounded border border-slate-900">
+                  <span className="text-[10px] text-slate-500 block mb-0.5">3등</span>
+                  <span className="font-bold text-slate-200">{performanceReport.counts.third}회</span>
+                </div>
+                <div className="bg-slate-950 p-2 rounded border border-slate-900">
+                  <span className="text-[10px] text-slate-500 block mb-0.5">4등</span>
+                  <span className="font-bold text-slate-300">{performanceReport.counts.fourth}회</span>
+                </div>
+                <div className="bg-slate-950 p-2 rounded border border-slate-900">
+                  <span className="text-[10px] text-slate-500 block mb-0.5">5등</span>
+                  <span className="font-bold text-slate-400">{performanceReport.counts.fifth}회</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 확인 버튼 */}
+            <button
+              onClick={() => {
+                setReportTargetSet(null);
+                setPerformanceReport(null);
+              }}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold active:scale-[0.98] transition-all"
+            >
+              확인 완료
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Pro Support & Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl relative">
+            {/* 닫기 버튼 */}
+            <button
+              onClick={() => setShowPaymentModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-xl font-bold"
+            >
+              &times;
+            </button>
+
+            {/* 타이틀 */}
+            <div className="text-center mb-5">
+              <span className="text-[10px] font-extrabold text-amber-400 px-2 py-0.5 rounded bg-amber-950 border border-amber-900/60 inline-block mb-2 uppercase tracking-wide animate-pulse">
+                Premium Support
+              </span>
+              <h3 className="text-lg font-bold text-white mb-1">로또랩 PRO 후원 & 멤버십</h3>
+              <p className="text-xs text-slate-400">
+                로또랩의 독립 연구 및 서버 유지를 지원하고 프리미엄 혜택을 누리세요.
+              </p>
+            </div>
+
+            {/* 혜택 카드 */}
+            <div className="mb-5 bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2 text-xs">
+              <span className="font-bold text-slate-300 block mb-1">PRO 멤버십 혜택</span>
+              <div className="flex items-center gap-2 text-slate-400">
+                <CheckCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>웹사이트 내 모든 광고(리스트 광고, 푸터 광고) 완전 제거</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <CheckCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>계정 프로필 및 화면 상단 황금빛 PRO 전용 배지 활성화</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <CheckCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>향후 제공될 고급 분석 알고리즘 우선권 제공</span>
+              </div>
+            </div>
+
+            {isProMember ? (
+              /* PRO 회원인 경우: 해지하기 */
+              <div className="space-y-4 text-center">
+                <div className="p-4 bg-amber-950/20 border border-amber-900/40 rounded-lg">
+                  <Award className="w-8 h-8 text-amber-400 mx-auto mb-2 animate-bounce" />
+                  <p className="text-sm font-bold text-amber-300">현재 PRO 멤버십 활성 상태입니다</p>
+                  <p className="text-[11px] text-slate-400 mt-1">로또랩 연구개발을 후원해 주셔서 진심으로 감사드립니다.</p>
+                </div>
+                
+                <button
+                  onClick={handleCancelMembership}
+                  className="w-full py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-rose-400 hover:text-rose-300 rounded text-xs font-bold transition-all"
+                >
+                  멤버십 구독 해지하기
+                </button>
+              </div>
+            ) : (
+              /* PRO 회원이 아닌 경우: 결제/후원 선택 */
+              <div className="space-y-4">
+                
+                {/* 1. 포트원 결제 */}
+                <div className="p-4 bg-slate-950 border border-slate-850 rounded-lg hover:border-slate-800 transition-all">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs font-bold text-slate-200">PortOne 정기 후원 결제</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">월 990원</span>
+                  </div>
+                  <button
+                    onClick={handleInitiatePayment}
+                    disabled={paymentPending}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded text-xs font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
+                  >
+                    {paymentPending ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        결제 모듈 호출 중...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-3.5 h-3.5" />
+                        정기 구독 결제창 열기
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* 2. 카카오페이 / 계좌 송금 후원 */}
+                <div className="p-4 bg-slate-950 border border-slate-850 rounded-lg hover:border-slate-800 transition-all">
+                  <div className="flex items-center gap-2 mb-3">
+                    <QrCode className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-bold text-slate-200">카카오페이 / 계좌로 직접 후원</span>
+                  </div>
+                  
+                  {/* QR 코드 모의 화면 */}
+                  <div className="flex flex-col sm:flex-row items-center gap-3 bg-slate-900 p-2.5 rounded border border-slate-800/80">
+                    <div className="w-20 h-20 bg-white p-1 rounded shrink-0 flex items-center justify-center relative">
+                      {/* QR Mockup using CSS grid/shapes */}
+                      <div className="w-full h-full bg-slate-900 flex items-center justify-center text-white text-[9px] font-bold text-center">
+                        KAKAO PAY
+                        <br />
+                        QR CODE
+                      </div>
+                    </div>
+                    <div className="text-left space-y-1">
+                      <p className="text-[10px] text-amber-400 font-bold">카카오페이 일시 송금 지원</p>
+                      <p className="text-[10px] text-slate-400">
+                        좌측 QR을 모바일 카메라로 스캔하거나 아래 가상 계좌로 원하시는 금액만큼 1회성 커피값 후원이 가능합니다.
+                      </p>
+                      <p className="text-[10px] text-slate-300 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-900 inline-block">
+                        국민은행 990-2026-LOTTOLAB
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setIsProMember(true);
+                      localStorage.setItem("lottolab_pro", "true");
+                      alert("후원이 접수되었습니다. 즉시 PRO 멤버십이 임시 적용됩니다! 감사합니다.");
+                      setShowPaymentModal(false);
+                    }}
+                    className="w-full mt-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-800 rounded text-[11px] font-bold transition-all"
+                  >
+                    송금/후원 완료 후 PRO 뱃지 켜기
+                  </button>
+                </div>
+
+              </div>
+            )}
+
+            <div className="mt-4 text-center text-[10px] text-slate-500">
+              * 포트원 결제는 테스트 모드(가상 결제)로 동작하며 실제 비용이 청구되지 않습니다.
+            </div>
           </div>
         </div>
       )}

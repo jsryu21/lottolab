@@ -3,6 +3,8 @@ export interface LottoFilters {
   excludedNumbers: number[];
   oddEvenRatio: string; // "all", "3:3", "2:4", "4:2", "1:5", "5:1", "0:6", "6:0"
   sumRange: { min: number; max: number } | null;
+  consecutiveLimit?: number; // 0: 제한없음, 2: 2연속 이상 차단, 3: 3연속 이상 차단
+  endingSumRange?: { min: number; max: number } | null;
 }
 
 export interface SavedNumber {
@@ -42,6 +44,27 @@ export function calculateSum(numbers: number[]): number {
   return numbers.reduce((acc, curr) => acc + curr, 0);
 }
 
+// 최대 연속 수 계산 (예: [1, 2, 4, 5, 6] -> 4,5,6이 연속하므로 3 반환)
+export function getMaxConsecutiveCount(numbers: number[]): number {
+  let maxSeq = 1;
+  let currentSeq = 1;
+  const sorted = [...numbers].sort((a, b) => a - b);
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === sorted[i - 1] + 1) {
+      currentSeq++;
+    } else {
+      maxSeq = Math.max(maxSeq, currentSeq);
+      currentSeq = 1;
+    }
+  }
+  return Math.max(maxSeq, currentSeq);
+}
+
+// 끝수 합 계산 (예: [12, 13, 25] -> 2+3+5 = 10)
+export function calculateEndingSum(numbers: number[]): number {
+  return numbers.reduce((acc, curr) => acc + (curr % 10), 0);
+}
+
 // 2. 필터 검증기
 export function isValidCombination(numbers: number[], filters: LottoFilters): boolean {
   // 2.1 고정수 포함 여부 검증
@@ -65,6 +88,18 @@ export function isValidCombination(numbers: number[], filters: LottoFilters): bo
   if (filters.sumRange) {
     const sum = calculateSum(numbers);
     if (sum < filters.sumRange.min || sum > filters.sumRange.max) return false;
+  }
+
+  // 2.5 연속 번호 제한 검증
+  if (filters.consecutiveLimit && filters.consecutiveLimit > 0) {
+    const maxConsecutive = getMaxConsecutiveCount(numbers);
+    if (maxConsecutive >= filters.consecutiveLimit) return false;
+  }
+
+  // 2.6 끝수 합 범위 검증
+  if (filters.endingSumRange) {
+    const endingSum = calculateEndingSum(numbers);
+    if (endingSum < filters.endingSumRange.min || endingSum > filters.endingSumRange.max) return false;
   }
 
   return true;
@@ -192,3 +227,63 @@ export const mockLottoDraws: LottoDraw[] = [
   { drwNo: 1106, drwNoDate: "2024-02-10", no1: 1, no2: 3, no3: 4, no4: 29, no5: 42, no6: 45, bonusNo: 36, totSellAmnt: 113900000000, firstWinAmnt: 2289000000, firstPrzWnerCo: 11 },
   { drwNo: 1105, drwNoDate: "2024-02-03", no1: 6, no2: 16, no3: 34, no4: 37, no5: 39, no6: 40, bonusNo: 11, totSellAmnt: 112800000000, firstWinAmnt: 1681000000, firstPrzWnerCo: 15 },
 ];
+
+export interface PerformanceReport {
+  highestRank: string;
+  highestDrawNo: number | null;
+  highestDate: string | null;
+  counts: {
+    first: number;
+    second: number;
+    third: number;
+    fourth: number;
+    fifth: number;
+  };
+}
+
+export function checkHistoricalPerformance(set: number[], drawsList: LottoDraw[]): PerformanceReport {
+  let highestRankVal = 6; // 6: 낙첨/매칭없음, 1~5: 1등~5등
+  let highestDrawNo: number | null = null;
+  let highestDate: string | null = null;
+  
+  const counts = { first: 0, second: 0, third: 0, fourth: 0, fifth: 0 };
+  
+  drawsList.forEach((d) => {
+    const winningNumbers = [d.no1, d.no2, d.no3, d.no4, d.no5, d.no6];
+    const matchCount = set.filter((n) => winningNumbers.includes(n)).length;
+    const matchBonus = set.includes(d.bonusNo);
+    
+    let rank = 6;
+    if (matchCount === 6) {
+      rank = 1;
+      counts.first++;
+    } else if (matchCount === 5 && matchBonus) {
+      rank = 2;
+      counts.second++;
+    } else if (matchCount === 5) {
+      rank = 3;
+      counts.third++;
+    } else if (matchCount === 4) {
+      rank = 4;
+      counts.fourth++;
+    } else if (matchCount === 3) {
+      rank = 5;
+      counts.fifth++;
+    }
+    
+    if (rank < highestRankVal) {
+      highestRankVal = rank;
+      highestDrawNo = d.drwNo;
+      highestDate = d.drwNoDate;
+    }
+  });
+  
+  const rankLabels = ["", "1등", "2등", "3등", "4등", "5등", "없음"];
+  
+  return {
+    highestRank: rankLabels[highestRankVal],
+    highestDrawNo,
+    highestDate,
+    counts,
+  };
+}
