@@ -689,11 +689,6 @@ export default function LottoLabDashboard() {
 
           {/* User Auth Info */}
           <div className="flex items-center gap-3">
-            {/* Cloud Status Indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded bg-slate-950 border border-slate-800 text-[10px] font-semibold text-slate-400">
-              <span className={`w-1.5 h-1.5 rounded-full ${isLocalMode ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
-              {isLocalMode ? "로컬 보관 모드" : "Supabase 클라우드"}
-            </div>
 
             {authLoading ? (
               <span className="text-xs text-slate-500">인증 복구 중...</span>
