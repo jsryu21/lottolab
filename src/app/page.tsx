@@ -50,7 +50,7 @@ import LoginGateCard from "@/components/LoginGateCard";
 const GATED_TABS = ["locker", "stats", "simulator", "dream"] as const;
 
 export default function LottoLabDashboard() {
-  const { user, isLoading: authLoading, isLocalMode, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
+  const { user, isLoading: authLoading, isLocalMode, isPro, refreshProStatus, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
 
   // UI 상태 관리
   const [activeTab, setActiveTab] = useState<"generator" | "locker" | "stats" | "simulator" | "dream">("generator");
@@ -83,7 +83,7 @@ export default function LottoLabDashboard() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
   // 1.5 PRO 멤버십 및 수익화 관련 상태
-  const [isProMember, setIsProMember] = useState<boolean>(false);
+  const isProMember = isPro;
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [paymentPending, setPaymentPending] = useState<boolean>(false);
 
@@ -273,8 +273,6 @@ export default function LottoLabDashboard() {
   useEffect(() => {
     loadSavedNumbers();
     loadLottoDraws();
-    const savedPro = localStorage.getItem("lottolab_pro") === "true";
-    setIsProMember(savedPro);
   }, [loadSavedNumbers, loadLottoDraws, user]);
 
   // --- 인증 관련 모달 액션 ---
@@ -551,48 +549,60 @@ export default function LottoLabDashboard() {
     const report = checkHistoricalPerformance(set, draws);
     setPerformanceReport(report);
   };
+  // 결제 후 서버 검증 + DB 반영
+  const activateProViaServer = async (imp_uid: string, merchant_uid: string) => {
+    if (!user) return;
+    const res = await fetch("/api/payment/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imp_uid, merchant_uid, userId: user.id }),
+    });
+    if (res.ok) {
+      await refreshProStatus();
+      toast.success("결제가 완료되었습니다! PRO 멤버십이 활성화되었습니다.");
+      setShowPaymentModal(false);
+    } else {
+      const d = await res.json();
+      toast.error(`결제 검증 실패: ${d.error ?? "알 수 없는 오류"}`);
+    }
+  };
+
   // 멤버십 결제 시뮬레이션
   const handleInitiatePayment = () => {
     if (isLocalMode) {
       setPaymentPending(true);
       setTimeout(() => {
         setPaymentPending(false);
-        setIsProMember(true);
         localStorage.setItem("lottolab_pro", "true");
+        refreshProStatus();
         toast.success("로컬 모드 테스트 결제(990원) 완료! PRO 멤버십이 활성화되었습니다.");
         setShowPaymentModal(false);
       }, 1500);
     } else {
       if (typeof window === "undefined" || !(window as any).IMP) {
-        // SDK 미로드 시 즉시 테스트 연동
         setPaymentPending(true);
-        setTimeout(() => {
+        setTimeout(async () => {
           setPaymentPending(false);
-          setIsProMember(true);
-          localStorage.setItem("lottolab_pro", "true");
-          toast.success("포트원 테스트 연동 완료! PRO 멤버십이 연동되었습니다.");
-          setShowPaymentModal(false);
+          await activateProViaServer("test_imp_uid", `merchant_${Date.now()}`);
         }, 1200);
         return;
       }
-      
+
       const { IMP } = window as any;
-      IMP.init("imp36712356"); // 가맹점 식별코드
-      
+      IMP.init("imp36712356");
+
+      const merchant_uid = `merchant_${Date.now()}`;
       IMP.request_pay({
         pg: "kakaopay.TC00000000",
         pay_method: "card",
-        merchant_uid: `merchant_${new Date().getTime()}`,
+        merchant_uid,
         name: "LottoLab PRO 멤버십 (1개월)",
         amount: 990,
         buyer_email: user?.email || "test@lottolab.com",
         buyer_name: "로또랩후원자",
-      }, function (rsp: any) {
+      }, async function (rsp: any) {
         if (rsp.success) {
-          setIsProMember(true);
-          localStorage.setItem("lottolab_pro", "true");
-          toast.success("결제 후원이 완료되었습니다! 감사합니다. PRO 멤버십이 활성화되었습니다.");
-          setShowPaymentModal(false);
+          await activateProViaServer(rsp.imp_uid, merchant_uid);
         } else {
           toast.error(`결제에 실패하였습니다: ${rsp.error_msg}`);
         }
@@ -600,9 +610,9 @@ export default function LottoLabDashboard() {
     }
   };
 
-  const handleCancelMembership = () => {
-    setIsProMember(false);
-    localStorage.removeItem("lottolab_pro");
+  const handleCancelMembership = async () => {
+    if (isLocalMode) localStorage.removeItem("lottolab_pro");
+    await refreshProStatus();
     toast("PRO 멤버십 후원이 해제되었습니다. 일반 등급으로 전환됩니다.");
   };
 
@@ -2544,11 +2554,8 @@ export default function LottoLabDashboard() {
                   </div>
 
                   <button
-                    onClick={() => {
-                      setIsProMember(true);
-                      localStorage.setItem("lottolab_pro", "true");
-                      toast.success("후원이 접수되었습니다! PRO 멤버십이 즉시 적용됩니다. 감사합니다.");
-                      setShowPaymentModal(false);
+                    onClick={async () => {
+                      await activateProViaServer("honorware_manual", `honorware_${Date.now()}`);
                     }}
                     className="w-full mt-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-800 rounded text-[11px] font-bold transition-all"
                   >
