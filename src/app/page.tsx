@@ -413,6 +413,16 @@ export default function LottoLabDashboard() {
       return;
     }
 
+    // 중복 저장 방지
+    const sortedNew = [...numbers].sort((a, b) => a - b).join(",");
+    const isDuplicate = savedNumbers.some(
+      (s) => [...s.numbers].sort((a, b) => a - b).join(",") === sortedNew
+    );
+    if (isDuplicate) {
+      toast("이미 보관된 번호 조합입니다.", { duration: 2000 });
+      return;
+    }
+
     if (isLocalMode) {
       // 로컬 저장소 저장
       const stored = localStorage.getItem("lottolab_saved");
