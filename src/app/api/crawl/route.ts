@@ -41,40 +41,52 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 3. 특정 회차 조회 파라미터 확인 (예: /api/crawl?drwNo=1120)
+    // 3. 단일 회차 조회 (예: /api/crawl?drwNo=1120)
     const paramDrwNo = req.nextUrl.searchParams.get("drwNo");
-    
     if (paramDrwNo) {
       const drwNo = parseInt(paramDrwNo, 10);
-      if (isNaN(drwNo)) {
-        return NextResponse.json({ error: "Invalid drwNo" }, { status: 400 });
-      }
-      
+      if (isNaN(drwNo)) return NextResponse.json({ error: "Invalid drwNo" }, { status: 400 });
       const drawData = await fetchDrawFromAPI(drwNo);
-      if (!drawData) {
-        return NextResponse.json({ error: `회차 ${drwNo} 데이터를 가져오지 못했습니다.` }, { status: 404 });
-      }
-      
+      if (!drawData) return NextResponse.json({ error: `회차 ${drwNo} 데이터를 가져오지 못했습니다.` }, { status: 404 });
       await saveDrawToDB(drawData);
       return NextResponse.json({ success: true, crawled: [drwNo] });
     }
 
-    // 4. 배치 자동 크롤링 (DB의 최신 회차 다음부터 최대 20회차까지 수집)
-    // DB의 최대 회차 조회
+    // 4. 범위 지정 Bulk 수집 (예: /api/crawl?from=1&to=100)
+    const paramFrom = req.nextUrl.searchParams.get("from");
+    const paramTo = req.nextUrl.searchParams.get("to");
+    if (paramFrom && paramTo) {
+      const fromNo = parseInt(paramFrom, 10);
+      const toNo = parseInt(paramTo, 10);
+      if (isNaN(fromNo) || isNaN(toNo) || fromNo > toNo) {
+        return NextResponse.json({ error: "Invalid from/to range" }, { status: 400 });
+      }
+      const maxBulk = parseInt(process.env.CRAWL_BATCH_SIZE ?? "50", 10);
+      const rangeSize = Math.min(toNo - fromNo + 1, maxBulk);
+      const crawledBulk: number[] = [];
+      for (let no = fromNo; no < fromNo + rangeSize; no++) {
+        const d = await fetchDrawFromAPI(no);
+        if (!d) break;
+        await saveDrawToDB(d);
+        crawledBulk.push(no);
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      return NextResponse.json({ success: true, crawledCount: crawledBulk.length, crawledRange: `${crawledBulk[0]}~${crawledBulk.at(-1)}` });
+    }
+
+    // 5. 배치 자동 크롤링 (DB의 최신 회차 다음부터 batchSize만큼 수집)
     const { data: latestDrawInDb } = await supabase
       .from("draws")
       .select("drw_no")
       .order("drw_no", { ascending: false })
       .limit(1);
 
-    // DB에 데이터가 없으면 1회차부터 수집하는 대신, 최근 회차(예: 1100회차) 근처에서 시작하거나 1회차부터 수집합니다.
-    // 여기서는 1회차부터 수집하되, 타임아웃 방지를 위해 한 번에 최대 20개씩 수집하게 구현합니다.
     let startDrwNo = 1;
     if (latestDrawInDb && latestDrawInDb.length > 0) {
       startDrwNo = latestDrawInDb[0].drw_no + 1;
     }
 
-    const maxBatchSize = 25;
+    const maxBatchSize = parseInt(process.env.CRAWL_BATCH_SIZE ?? "25", 10);
     const crawledDrwNos: number[] = [];
     
     for (let currentDrwNo = startDrwNo; currentDrwNo < startDrwNo + maxBatchSize; currentDrwNo++) {
