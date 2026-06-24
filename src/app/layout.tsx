@@ -14,9 +14,46 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const BASE_URL = "https://lottolab-sigma.vercel.app";
+
 export const metadata: Metadata = {
   title: "LottoLab (로또랩) - 스마트 로또 번호 추천 및 분석",
   description: "통계 데이터 필터링과 AI 기술을 결합한 신뢰할 수 있는 로또 번호 분석 및 추천 연구소",
+  metadataBase: new URL(BASE_URL),
+  openGraph: {
+    type: "website",
+    url: BASE_URL,
+    siteName: "LottoLab (로또랩)",
+    title: "LottoLab (로또랩) - 스마트 로또 번호 추천 및 분석",
+    description: "통계 데이터 필터링과 AI 기술을 결합한 신뢰할 수 있는 로또 번호 분석 및 추천 연구소",
+    locale: "ko_KR",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "LottoLab - 스마트 로또 번호 추천 및 분석",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LottoLab (로또랩) - 스마트 로또 번호 추천 및 분석",
+    description: "통계 데이터 필터링과 AI 기술을 결합한 신뢰할 수 있는 로또 번호 분석 및 추천 연구소",
+    images: ["/opengraph-image"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
 };
 
 export default function RootLayout({
