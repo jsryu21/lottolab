@@ -189,6 +189,7 @@ export default function LottoLabDashboard() {
         setSavedNumbers(mapped);
       } catch (err) {
         console.error("DB saved numbers fetch error:", err);
+        toast.error("보관함을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
       } finally {
         setLockerLoading(false);
       }
@@ -475,6 +476,7 @@ export default function LottoLabDashboard() {
         await loadSavedNumbers();
       } catch (err) {
         console.error("Failed to delete number:", err);
+        toast.error("번호 삭제에 실패했습니다.");
       }
     }
   };
@@ -503,6 +505,7 @@ export default function LottoLabDashboard() {
         setEditingMemoId(null);
       } catch (err) {
         console.error("Failed to update memo:", err);
+        toast.error("메모 저장에 실패했습니다.");
       }
     }
   };
