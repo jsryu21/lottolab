@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Script from "next/script";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
   generateLottoNumbers,
   LottoFilters,
@@ -131,6 +131,15 @@ export default function LottoLabDashboard() {
     isRealAi: boolean;
   } | null>(null);
   const [dreamSaveSuccess, setDreamSaveSuccess] = useState(false);
+  const [dreamHistory, setDreamHistory] = useState<Array<{
+    id: string;
+    dream_text: string;
+    interpretation: string;
+    keywords: string[];
+    numbers: number[];
+    created_at: string;
+  }>>([]);
+  const [dreamHistoryLoading, setDreamHistoryLoading] = useState(false);
 
   // --- 헬퍼 함수: 고정수/제외수 리스트 추출 ---
   const getFixedNumbers = useCallback(() => {
@@ -274,6 +283,7 @@ export default function LottoLabDashboard() {
     loadSavedNumbers();
     loadLottoDraws();
   }, [loadSavedNumbers, loadLottoDraws, user]);
+
 
   // --- 인증 관련 모달 액션 ---
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -675,6 +685,33 @@ export default function LottoLabDashboard() {
   };
 
   // --- 꿈 해몽 AI ---
+  const loadDreamHistory = useCallback(async (userId: string) => {
+    if (!isSupabaseConfigured) return;
+    setDreamHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("dream_logs")
+        .select("id, dream_text, interpretation, keywords, numbers, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (!error && data) {
+        setDreamHistory(data as typeof dreamHistory);
+      }
+    } catch {
+      // 조용히 실패
+    } finally {
+      setDreamHistoryLoading(false);
+    }
+  }, []);
+
+  // 드림 탭 활성화 시 히스토리 로드
+  useEffect(() => {
+    if (activeTab === "dream" && user?.id) {
+      loadDreamHistory(user.id);
+    }
+  }, [activeTab, user, loadDreamHistory]);
+
   const handleDreamInterpret = async () => {
     if (!dreamInput.trim()) return;
     setDreamLoading(true);
@@ -687,13 +724,14 @@ export default function LottoLabDashboard() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ dreamText: dreamInput }),
+        body: JSON.stringify({ dreamText: dreamInput, userId: user?.id }),
       });
 
       if (!res.ok) throw new Error("Dream API invocation failed");
 
       const data = await res.json();
       setDreamResult(data);
+      if (user?.id) loadDreamHistory(user.id);
     } catch (err) {
       console.error(err);
       toast.error("꿈 해몽 처리 중 오류가 발생했습니다.");
@@ -2082,6 +2120,42 @@ export default function LottoLabDashboard() {
               </div>
 
             </div>
+
+            {/* 내 해몽 히스토리 */}
+            {isSupabaseConfigured && (
+              <div className="border-t border-slate-800 pt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-300">내 해몽 히스토리</h3>
+                  {dreamHistoryLoading && <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />}
+                </div>
+                {dreamHistory.length === 0 && !dreamHistoryLoading ? (
+                  <p className="text-xs text-slate-600 py-3 text-center">저장된 해몽 기록이 없습니다.</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {dreamHistory.map((log) => (
+                      <div key={log.id} className="bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-[11px] text-slate-400 line-clamp-2 flex-1">{log.dream_text}</p>
+                          <span className="text-[10px] text-slate-600 shrink-0">
+                            {new Date(log.created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}
+                          </span>
+                        </div>
+                        <div className="flex gap-1 flex-wrap">
+                          {(log.keywords ?? []).map((kw, i) => (
+                            <span key={i} className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-900/60">#{kw}</span>
+                          ))}
+                        </div>
+                        <div className="flex gap-1">
+                          {(log.numbers ?? []).map((n) => (
+                            <span key={n} className={`w-6 h-6 rounded-full text-[10px] font-extrabold flex items-center justify-center ${getBallColor(n)}`}>{n}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
         )}
