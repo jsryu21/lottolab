@@ -92,11 +92,16 @@ export async function GET(req: NextRequest) {
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
+    // 신규 데이터가 없어도 SELECT 쿼리로 Supabase 활성 상태 유지
+    if (crawledDrwNos.length === 0) {
+      await supabase.from("draws").select("drw_no").limit(1);
+    }
+
     return NextResponse.json({
       success: true,
       crawledCount: crawledDrwNos.length,
-      crawledRange: crawledDrwNos.length > 0 
-        ? `${crawledDrwNos[0]}회차 ~ ${crawledDrwNos[crawledDrwNos.length - 1]}회차` 
+      crawledRange: crawledDrwNos.length > 0
+        ? `${crawledDrwNos[0]}회차 ~ ${crawledDrwNos[crawledDrwNos.length - 1]}회차`
         : "이미 최신 상태입니다.",
       crawledList: crawledDrwNos,
     });
