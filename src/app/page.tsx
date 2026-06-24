@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 
 export default function LottoLabDashboard() {
-  const { user, isLoading: authLoading, isLocalMode, login, signUp, logout } = useAuth();
+  const { user, isLoading: authLoading, isLocalMode, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
 
   // UI 상태 관리
   const [activeTab, setActiveTab] = useState<"generator" | "locker" | "stats" | "simulator" | "dream">("generator");
@@ -56,6 +56,10 @@ export default function LottoLabDashboard() {
   const [authError, setAuthError] = useState("");
   const [authSuccessMsg, setAuthSuccessMsg] = useState("");
   const [authPending, setAuthPending] = useState(false);
+  const [authStep, setAuthStep] = useState<"form" | "otp">("form");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [otpResendCooldown, setOtpResendCooldown] = useState(0);
 
   // 1. 번호 생성기 상태
   const [gridModes, setGridModes] = useState<Record<number, "fixed" | "excluded" | "none">>({});
@@ -227,6 +231,36 @@ export default function LottoLabDashboard() {
     }
   }, [isLocalMode]);
 
+  // OTP 만료 카운트다운
+  useEffect(() => {
+    if (otpCountdown <= 0) return;
+    const t = setTimeout(() => setOtpCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [otpCountdown]);
+
+  // OTP 재발송 쿨다운
+  useEffect(() => {
+    if (otpResendCooldown <= 0) return;
+    const t = setTimeout(() => setOtpResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [otpResendCooldown]);
+
+  const formatCountdown = (sec: number) => {
+    const m = Math.floor(sec / 60).toString().padStart(2, "0");
+    const s = (sec % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  const resetAuthModal = () => {
+    setShowAuthModal(false);
+    setAuthError("");
+    setAuthSuccessMsg("");
+    setAuthStep("form");
+    setOtpCode("");
+    setOtpCountdown(0);
+    setOtpResendCooldown(0);
+  };
+
   // 초기 로드
   useEffect(() => {
     loadSavedNumbers();
@@ -249,13 +283,14 @@ export default function LottoLabDashboard() {
           if (isLocalMode) {
             setAuthSuccessMsg("로컬 계정 생성이 완료되어 자동 로그인되었습니다.");
             setTimeout(() => {
-              setShowAuthModal(false);
+              resetAuthModal();
               setAuthEmail("");
               setAuthPassword("");
             }, 1500);
-          } else {
-            setAuthSuccessMsg("회원 가입이 완료되었습니다. 로그인해 주세요.");
-            setIsSignUpMode(false);
+          } else if (res.requiresOtp) {
+            setAuthStep("otp");
+            setOtpCountdown(600);
+            setOtpResendCooldown(60);
           }
         } else {
           setAuthError(res.error || "회원가입에 실패했습니다.");
@@ -265,13 +300,60 @@ export default function LottoLabDashboard() {
         if (res.success) {
           setAuthSuccessMsg("성공적으로 로그인되었습니다.");
           setTimeout(() => {
-            setShowAuthModal(false);
+            resetAuthModal();
             setAuthEmail("");
             setAuthPassword("");
           }, 1000);
         } else {
           setAuthError(res.error || "이메일 또는 비밀번호가 잘못되었습니다.");
         }
+      }
+    } catch {
+      setAuthError("오류가 발생했습니다. 다시 시도해 주세요.");
+    } finally {
+      setAuthPending(false);
+    }
+  };
+
+  const handleOtpVerify = async () => {
+    if (otpCode.length !== 6) {
+      setAuthError("6자리 인증 코드를 입력해 주세요.");
+      return;
+    }
+    setAuthPending(true);
+    setAuthError("");
+    try {
+      const res = await verifyOtp(authEmail, otpCode);
+      if (res.success) {
+        setAuthSuccessMsg("이메일 인증이 완료되었습니다!");
+        setTimeout(() => {
+          resetAuthModal();
+          setAuthEmail("");
+          setAuthPassword("");
+        }, 1200);
+      } else {
+        setAuthError(res.error || "인증 코드가 올바르지 않습니다.");
+      }
+    } catch {
+      setAuthError("오류가 발생했습니다. 다시 시도해 주세요.");
+    } finally {
+      setAuthPending(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpResendCooldown > 0) return;
+    setAuthPending(true);
+    setAuthError("");
+    try {
+      const res = await resendOtp(authEmail);
+      if (res.success) {
+        setOtpCountdown(600);
+        setOtpResendCooldown(60);
+        setAuthSuccessMsg("인증 코드를 재발송했습니다.");
+        setTimeout(() => setAuthSuccessMsg(""), 3000);
+      } else {
+        setAuthError(res.error || "재발송에 실패했습니다.");
       }
     } catch {
       setAuthError("오류가 발생했습니다. 다시 시도해 주세요.");
@@ -2013,11 +2095,7 @@ export default function LottoLabDashboard() {
             
             {/* 닫기 */}
             <button
-              onClick={() => {
-                setShowAuthModal(false);
-                setAuthError("");
-                setAuthSuccessMsg("");
-              }}
+              onClick={resetAuthModal}
               className="absolute top-4 right-4 text-slate-400 hover:text-white text-base font-bold"
             >
               &times;
@@ -2025,14 +2103,29 @@ export default function LottoLabDashboard() {
 
             {/* 타이틀 */}
             <div className="text-center mb-5">
-              <h3 className="text-lg font-bold text-white mb-1">
-                {isSignUpMode ? "새로운 계정 생성" : "LottoLab 로그인"}
-              </h3>
-              <p className="text-xs text-slate-400">
-                {isSignUpMode 
-                  ? "로또랩 분석 데이터를 보관하기 위해 가입하세요." 
-                  : "저장된 조합을 동기화하고 개인화 서비스를 사용하세요."}
-              </p>
+              {authStep === "otp" ? (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-blue-950/60 border border-blue-900/50 flex items-center justify-center mx-auto mb-3">
+                    <KeyRound className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">이메일 인증</h3>
+                  <p className="text-xs text-slate-400">
+                    <span className="text-blue-400 font-semibold">{authEmail}</span>으로<br />
+                    6자리 인증 코드를 발송했습니다.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    {isSignUpMode ? "새로운 계정 생성" : "LottoLab 로그인"}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {isSignUpMode
+                      ? "로또랩 분석 데이터를 보관하기 위해 가입하세요."
+                      : "저장된 조합을 동기화하고 개인화 서비스를 사용하세요."}
+                  </p>
+                </>
+              )}
             </div>
 
             {/* 에러/성공 피드백 */}
@@ -2049,82 +2142,142 @@ export default function LottoLabDashboard() {
               </div>
             )}
 
-            {/* 로그인 / 회원가입 폼 */}
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1">이메일 주소</label>
-                <input
-                  type="email"
-                  required
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/80"
-                  placeholder="name@domain.com"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1">비밀번호</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/80"
-                  placeholder="6자리 이상 비밀번호"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={authPending}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded text-xs font-bold active:scale-[0.98] transition-all shadow-md shadow-blue-600/10"
-              >
-                {authPending 
-                  ? "처리 중..." 
-                  : isSignUpMode 
-                    ? "회원 가입 완료하기" 
-                    : "로또랩 로그인"}
-              </button>
-            </form>
-
-            {/* 모드 전환 */}
-            <div className="mt-5 text-center text-xs text-slate-400 border-t border-slate-850 pt-4">
-              {isSignUpMode ? (
-                <>
-                  이미 계정이 있으신가요?{" "}
-                  <button
-                    onClick={() => {
-                      setIsSignUpMode(false);
+            {authStep === "otp" ? (
+              /* --- Step 2: OTP 입력 --- */
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 block mb-2 text-center">
+                    인증 코드 6자리 입력
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    autoFocus
+                    value={otpCode}
+                    onChange={(e) => {
+                      setOtpCode(e.target.value.replace(/\D/g, ""));
                       setAuthError("");
                     }}
-                    className="text-blue-400 hover:underline font-bold"
-                  >
-                    로그인으로 전환
-                  </button>
-                </>
-              ) : (
-                <>
-                  아직 계정이 없으신가요?{" "}
-                  <button
-                    onClick={() => {
-                      setIsSignUpMode(true);
-                      setAuthError("");
-                    }}
-                    className="text-blue-400 hover:underline font-bold"
-                  >
-                    무료 회원가입
-                  </button>
-                </>
-              )}
-            </div>
+                    onKeyDown={(e) => e.key === "Enter" && handleOtpVerify()}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-2xl text-center text-white tracking-[0.6em] font-bold focus:outline-none focus:border-blue-500/80 placeholder-slate-700"
+                    placeholder="000000"
+                  />
+                </div>
 
-            {/* 로컬 모드 안내 */}
-            {isLocalMode && (
-              <div className="mt-4 p-2 bg-slate-950 rounded border border-slate-800/80 text-[10px] text-slate-400 text-center">
-                * 로컬 모드로 동작 중입니다. 임의의 이메일과 비밀번호를 입력하셔도 바로 로그인되며, 번호 저장 등 모든 기능이 브라우저에 임시 유지됩니다.
+                {/* 만료 카운트다운 + 재발송 */}
+                <div className="flex items-center justify-between text-xs px-1">
+                  <span className={`font-mono font-bold ${otpCountdown <= 60 ? "text-rose-400" : "text-slate-400"}`}>
+                    {otpCountdown > 0 ? `⏱ ${formatCountdown(otpCountdown)} 후 만료` : "코드가 만료되었습니다"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={otpResendCooldown > 0 || authPending}
+                    className="text-blue-400 hover:text-blue-300 disabled:text-slate-600 font-semibold transition-colors"
+                  >
+                    {otpResendCooldown > 0 ? `재발송 (${otpResendCooldown}s)` : "코드 재발송"}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOtpVerify}
+                  disabled={otpCode.length !== 6 || authPending}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded text-xs font-bold active:scale-[0.98] transition-all"
+                >
+                  {authPending ? "인증 확인 중..." : "인증 완료하기"}
+                </button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => { setAuthStep("form"); setAuthError(""); setOtpCode(""); }}
+                    className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    ← 이메일 입력으로 돌아가기
+                  </button>
+                </div>
+
+                <div className="p-2 bg-slate-950 rounded border border-slate-800/80 text-[10px] text-slate-500 text-center">
+                  이메일이 오지 않으면 스팸 폴더를 확인해 주세요.
+                </div>
               </div>
+            ) : (
+              /* --- Step 1: 로그인 / 회원가입 폼 --- */
+              <>
+                <form onSubmit={handleAuthSubmit} className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">이메일 주소</label>
+                    <input
+                      type="email"
+                      required
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/80"
+                      placeholder="name@domain.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">비밀번호</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/80"
+                      placeholder="6자리 이상 비밀번호"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={authPending}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded text-xs font-bold active:scale-[0.98] transition-all shadow-md shadow-blue-600/10"
+                  >
+                    {authPending
+                      ? "처리 중..."
+                      : isSignUpMode
+                        ? "인증 코드 받기"
+                        : "로또랩 로그인"}
+                  </button>
+                </form>
+
+                {/* 모드 전환 */}
+                <div className="mt-5 text-center text-xs text-slate-400 border-t border-slate-800 pt-4">
+                  {isSignUpMode ? (
+                    <>
+                      이미 계정이 있으신가요?{" "}
+                      <button
+                        onClick={() => { setIsSignUpMode(false); setAuthError(""); }}
+                        className="text-blue-400 hover:underline font-bold"
+                      >
+                        로그인으로 전환
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      아직 계정이 없으신가요?{" "}
+                      <button
+                        onClick={() => { setIsSignUpMode(true); setAuthError(""); }}
+                        className="text-blue-400 hover:underline font-bold"
+                      >
+                        무료 회원가입
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* 로컬 모드 안내 */}
+                {isLocalMode && (
+                  <div className="mt-4 p-2 bg-slate-950 rounded border border-slate-800/80 text-[10px] text-slate-400 text-center">
+                    * 로컬 모드로 동작 중입니다. 임의의 이메일과 비밀번호를 입력하셔도 바로 로그인되며, 번호 저장 등 모든 기능이 브라우저에 임시 유지됩니다.
+                  </div>
+                )}
+              </>
             )}
 
           </div>
