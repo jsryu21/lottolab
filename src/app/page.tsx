@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Script from "next/script";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -705,7 +705,7 @@ export default function LottoLabDashboard() {
   };
 
   // --- 통계 가공 변수 ---
-  const getStats = () => {
+  const statsData = useMemo(() => {
     const counts: Record<number, number> = {};
     for (let i = 1; i <= 45; i++) counts[i] = 0;
 
@@ -736,9 +736,7 @@ export default function LottoLabDashboard() {
       evenPct: Math.round((totalEven / (totalOdd + totalEven || 1)) * 100),
       allFrequency: frequencyList,
     };
-  };
-
-  const statsData = getStats();
+  }, [draws]);
 
   // 번호 테두리 색상 분류 헬퍼
   const getBallColor = (num: number) => {
