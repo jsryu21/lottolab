@@ -103,6 +103,7 @@ export default function LottoLabDashboard() {
   // 4. 시뮬레이터 상태
   const [selectedSimSet, setSelectedSimSet] = useState<number[] | null>(null);
   const [simBudget, setSimBudget] = useState<number>(100000); // 10만원 디폴트
+  const [simMode, setSimMode] = useState<"historical" | "montecarlo">("historical");
   const [simResults, setSimResults] = useState<{
     ran: boolean;
     totalSpent: number;
@@ -596,101 +597,57 @@ export default function LottoLabDashboard() {
   const runSimulation = () => {
     if (!selectedSimSet) return;
     setIsSimulating(true);
-    
+
     setTimeout(() => {
-      const pricePerGame = 1000;
-      const gameCount = Math.floor(simBudget / pricePerGame);
-      
-      const results = {
-        totalSpent: simBudget,
-        totalWon: 0,
-        roi: 0,
-        matches: {
-          first: 0,
-          second: 0,
-          third: 0,
-          fourth: 0,
-          fifth: 0,
-          none: 0,
-        },
+      const matches = { first: 0, second: 0, third: 0, fourth: 0, fifth: 0, none: 0 };
+      let totalWon = 0;
+      let totalSpent = 0;
+
+      const countMatch = (winningNumbers: number[], bonusNo: number) => {
+        const mc = selectedSimSet!.filter((n) => winningNumbers.includes(n)).length;
+        const mb = selectedSimSet!.includes(bonusNo);
+        if (mc === 6) { matches.first++; totalWon += 2_000_000_000; }
+        else if (mc === 5 && mb) { matches.second++; totalWon += 60_000_000; }
+        else if (mc === 5) { matches.third++; totalWon += 1_500_000; }
+        else if (mc === 4) { matches.fourth++; totalWon += 50_000; }
+        else if (mc === 3) { matches.fifth++; totalWon += 5_000; }
+        else { matches.none++; }
       };
 
-      // 시뮬레이터 로직: 유저가 선택한 번호를 역대 실제 당첨 회차들(draws)과 모두 대조해 대입해 봅니다.
-      // 회차 수가 부족하면 가상의 수천 회차를 시뮬레이션 돌립니다.
-      // 여기서는 역대 실제 draws 전체를 대상으로 대입해보고, 
-      // 만약 예산 게임수가 이보다 많다면 모자란 게임수는 임의의 가상 추첨을 시행합니다.
-      const actualDrawCount = draws.length;
-      const loops = Math.max(gameCount, actualDrawCount);
-      
-      for (let i = 0; i < loops; i++) {
-        let winningNumbers: number[] = [];
-        let bonusNo = 0;
-
-        if (i < actualDrawCount) {
-          // 1. 역대 실제 당첨 정보
-          const draw = draws[i];
-          winningNumbers = [draw.no1, draw.no2, draw.no3, draw.no4, draw.no5, draw.no6];
-          bonusNo = draw.bonusNo;
-        } else {
-          // 2. 가상의 로또 추첨 생성 (예산이 너무 많아 대입할 과거 회차가 부족한 경우)
-          const pool = Array.from({ length: 45 }, (_, idx) => idx + 1);
-          const temp: number[] = [];
-          for (let j = 0; j < 6; j++) {
-            const idx = Math.floor(Math.random() * pool.length);
-            temp.push(pool.splice(idx, 1)[0]);
-          }
-          winningNumbers = temp.sort((a, b) => a - b);
-          bonusNo = pool[Math.floor(Math.random() * pool.length)];
+      const randomDraw = (): { winning: number[]; bonus: number } => {
+        const pool = Array.from({ length: 45 }, (_, i) => i + 1);
+        const winning: number[] = [];
+        for (let j = 0; j < 6; j++) {
+          const idx = Math.floor(Math.random() * pool.length);
+          winning.push(pool.splice(idx, 1)[0]);
         }
+        const bonus = pool[Math.floor(Math.random() * pool.length)];
+        return { winning: winning.sort((a, b) => a - b), bonus };
+      };
 
-        // 일치 수 계산
-        const matchCount = selectedSimSet.filter((n) => winningNumbers.includes(n)).length;
-        const matchBonus = selectedSimSet.includes(bonusNo);
-
-        if (matchCount === 6) {
-          results.matches.first++;
-          results.totalWon += 2000000000; // 가상 1등 상금: 20억
-        } else if (matchCount === 5 && matchBonus) {
-          results.matches.second++;
-          results.totalWon += 60000000; // 가상 2등 상금: 6천만
-        } else if (matchCount === 5) {
-          results.matches.third++;
-          results.totalWon += 1500000; // 가상 3등 상금: 150만
-        } else if (matchCount === 4) {
-          results.matches.fourth++;
-          results.totalWon += 50000; // 4등 고정: 5만
-        } else if (matchCount === 3) {
-          results.matches.fifth++;
-          results.totalWon += 5000; // 5등 고정: 5천
-        } else {
-          results.matches.none++;
+      if (simMode === "historical") {
+        // 방법 A: 역대 전체 회차 대조 — scaleFactor 없이 실제 대조 결과를 그대로 사용
+        const actualDrawCount = draws.length;
+        for (let i = 0; i < actualDrawCount; i++) {
+          const d = draws[i];
+          countMatch([d.no1, d.no2, d.no3, d.no4, d.no5, d.no6], d.bonusNo);
         }
+        totalSpent = actualDrawCount * 1000;
+      } else {
+        // 방법 B: 몬테카를로 — 예산 게임 수만큼 독립 무작위 추첨
+        const gameCount = Math.floor(simBudget / 1000);
+        for (let i = 0; i < gameCount; i++) {
+          const { winning, bonus } = randomDraw();
+          countMatch(winning, bonus);
+        }
+        totalSpent = simBudget;
       }
 
-      // 예산 게임수 기준으로 최종 배율 재조정 (역대 전체 대조 결과를 예산 게임 비율로 환산)
-      const scaleFactor = gameCount / loops;
-      results.matches.first = Math.round(results.matches.first * scaleFactor);
-      results.matches.second = Math.round(results.matches.second * scaleFactor);
-      results.matches.third = Math.round(results.matches.third * scaleFactor);
-      results.matches.fourth = Math.round(results.matches.fourth * scaleFactor);
-      results.matches.fifth = Math.round(results.matches.fifth * scaleFactor);
-      results.matches.none = Math.round(results.matches.none * scaleFactor);
-      
-      results.totalWon = 
-        results.matches.first * 2000000000 +
-        results.matches.second * 60000000 +
-        results.matches.third * 1500000 +
-        results.matches.fourth * 50000 +
-        results.matches.fifth * 5000;
+      const roi = totalSpent > 0 ? (totalWon / totalSpent) * 100 : 0;
 
-      results.roi = results.totalSpent > 0 ? (results.totalWon / results.totalSpent) * 100 : 0;
-      
-      setSimResults({
-        ran: true,
-        ...results,
-      });
+      setSimResults({ ran: true, totalSpent, totalWon, roi, matches });
       setIsSimulating(false);
-    }, 1200); // 로딩 연출
+    }, 800);
   };
 
   // --- 꿈 해몽 AI ---
@@ -1786,9 +1743,43 @@ export default function LottoLabDashboard() {
                   </div>
                 )}
 
-                {/* 2. 모의 예산 설정 */}
+                {/* 2. 시뮬레이션 모드 선택 */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-2">모의 구매 예산</label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-2">시뮬레이션 방식</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => { setSimMode("historical"); setSimResults(null); }}
+                      className={`py-2 px-3 rounded text-[11px] font-bold border transition-all text-left space-y-0.5 ${
+                        simMode === "historical"
+                          ? "bg-blue-600/15 border-blue-500 text-blue-300"
+                          : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
+                      }`}
+                    >
+                      <div>역대 전체 대조</div>
+                      <div className="text-[9px] font-normal text-slate-500">모든 역대 회차에 대입</div>
+                    </button>
+                    <button
+                      onClick={() => { setSimMode("montecarlo"); setSimResults(null); }}
+                      className={`py-2 px-3 rounded text-[11px] font-bold border transition-all text-left space-y-0.5 ${
+                        simMode === "montecarlo"
+                          ? "bg-blue-600/15 border-blue-500 text-blue-300"
+                          : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
+                      }`}
+                    >
+                      <div>몬테카를로</div>
+                      <div className="text-[9px] font-normal text-slate-500">예산 게임 수 무작위 추첨</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. 모의 예산 설정 (몬테카를로 모드에서만 의미있음) */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-2">
+                    모의 구매 예산
+                    {simMode === "historical" && (
+                      <span className="ml-2 text-[9px] font-normal text-slate-600">(역대 대조 모드에서는 미사용)</span>
+                    )}
+                  </label>
                   <div className="grid grid-cols-4 gap-2">
                     {[10000, 50000, 100000, 1000000].map((amount) => (
                       <button
@@ -1851,9 +1842,13 @@ export default function LottoLabDashboard() {
                     <div className="grid grid-cols-3 gap-3">
                       
                       <div className="bg-slate-900 p-3 rounded border border-slate-800/80 text-center">
-                        <span className="text-[10px] text-slate-400 block mb-1">총 투자액</span>
+                        <span className="text-[10px] text-slate-400 block mb-1">
+                          {simMode === "historical" ? "총 대조 횟수" : "총 투자액"}
+                        </span>
                         <span className="text-sm font-bold text-slate-200">
-                          {simResults.totalSpent.toLocaleString()}원
+                          {simMode === "historical"
+                            ? `${(simResults.totalSpent / 1000).toLocaleString()}회`
+                            : `${simResults.totalSpent.toLocaleString()}원`}
                         </span>
                       </div>
 
@@ -1903,7 +1898,10 @@ export default function LottoLabDashboard() {
                     <div className="p-3 bg-slate-900 rounded border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
                       <Info className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
                       <div>
-                        모의 시뮬레이터는 매 게임을 무작위로 추출하여 대조한 모의 결과입니다. 당첨 결과는 독립 확률이므로 참고용으로만 사용해 주세요. (로또는 재미로 구매하는 건전한 오락입니다.)
+                        {simMode === "historical"
+                          ? `역대 ${(simResults.totalSpent / 1000).toLocaleString()}회차 전체에 선택 번호를 대입한 통계 결과입니다. scaleFactor 왜곡 없이 실제 당첨 이력을 그대로 반영합니다.`
+                          : "몬테카를로 방식으로 예산 게임 수만큼 독립 무작위 추첨을 시행한 확률론적 결과입니다. 매 실행마다 결과가 달라집니다."}
+                        {" "}(로또는 재미로 구매하는 건전한 오락입니다.)
                       </div>
                     </div>
 
