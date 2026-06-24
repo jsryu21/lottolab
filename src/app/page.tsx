@@ -42,13 +42,18 @@ import {
   CreditCard,
   QrCode,
   Award,
+  Lock,
 } from "lucide-react";
+import LoginGateCard from "@/components/LoginGateCard";
+
+const GATED_TABS = ["locker", "stats", "simulator", "dream"] as const;
 
 export default function LottoLabDashboard() {
   const { user, isLoading: authLoading, isLocalMode, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
 
   // UI 상태 관리
   const [activeTab, setActiveTab] = useState<"generator" | "locker" | "stats" | "simulator" | "dream">("generator");
+  const [pendingTab, setPendingTab] = useState<typeof activeTab | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
@@ -303,6 +308,10 @@ export default function LottoLabDashboard() {
             resetAuthModal();
             setAuthEmail("");
             setAuthPassword("");
+            if (pendingTab) {
+              setActiveTab(pendingTab);
+              setPendingTab(null);
+            }
           }, 1000);
         } else {
           setAuthError(res.error || "이메일 또는 비밀번호가 잘못되었습니다.");
@@ -825,7 +834,8 @@ export default function LottoLabDashboard() {
             >
               <FolderHeart className="w-3.5 h-3.5" />
               보관함
-              {savedNumbers.length > 0 && (
+              {!user && <Lock className="w-2.5 h-2.5 text-slate-500" />}
+              {user && savedNumbers.length > 0 && (
                 <span className="text-[9px] px-1 rounded-full bg-slate-800 text-slate-300 font-bold">
                   {savedNumbers.length}
                 </span>
@@ -841,6 +851,7 @@ export default function LottoLabDashboard() {
             >
               <TrendingUp className="w-3.5 h-3.5" />
               당첨 통계
+              {!user && <Lock className="w-2.5 h-2.5 text-slate-500" />}
             </button>
             <button
               onClick={() => setActiveTab("simulator")}
@@ -852,6 +863,7 @@ export default function LottoLabDashboard() {
             >
               <Play className="w-3.5 h-3.5" />
               모의 투자
+              {!user && <Lock className="w-2.5 h-2.5 text-slate-500" />}
             </button>
             <button
               onClick={() => {
@@ -866,6 +878,7 @@ export default function LottoLabDashboard() {
             >
               <Brain className="w-3.5 h-3.5 text-blue-400" />
               꿈 해몽 AI
+              {!user && <Lock className="w-2.5 h-2.5 text-slate-500" />}
             </button>
           </nav>
 
@@ -940,8 +953,25 @@ export default function LottoLabDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             {/* Left Column: Filter Panel */}
-            <div className="lg:col-span-5 bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-6">
-              
+            <div className="lg:col-span-5 bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-6 relative">
+
+              {/* 비로그인 잠금 오버레이 */}
+              {!user && (
+                <div className="absolute inset-0 bg-slate-950/75 rounded-xl flex flex-col items-center justify-center z-10 backdrop-blur-[2px] gap-3">
+                  <Lock className="w-7 h-7 text-slate-400" />
+                  <div className="text-center px-4">
+                    <p className="text-sm font-bold text-slate-200 mb-1">필터 기능은 로그인 후 이용 가능합니다</p>
+                    <p className="text-[11px] text-slate-400">아래 버튼으로 필터 없이 랜덤 추출은 바로 가능합니다.</p>
+                  </div>
+                  <button
+                    onClick={() => { setPendingTab(null); setShowAuthModal(true); }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all"
+                  >
+                    로그인 / 무료 회원가입
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
                 <div className="flex items-center gap-2">
                   <Dices className="w-5 h-5 text-blue-400" />
@@ -1303,9 +1333,13 @@ export default function LottoLabDashboard() {
                                   <Copy className="w-3.5 h-3.5" />
                                 </button>
                                 <button
-                                  onClick={() => handleOpenReport(set)}
+                                  onClick={() => {
+                                    if (!user) { setShowAuthModal(true); return; }
+                                    handleOpenReport(set);
+                                  }}
                                   className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded border bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-all"
                                 >
+                                  {!user && <Lock className="w-2.5 h-2.5 text-slate-500" />}
                                   성적표
                                 </button>
                                 <button
@@ -1375,21 +1409,7 @@ export default function LottoLabDashboard() {
             </div>
 
             {!user ? (
-              <div className="py-12 text-center max-w-sm mx-auto space-y-4">
-                <KeyRound className="w-10 h-10 text-slate-500 mx-auto" />
-                <div>
-                  <h3 className="font-bold text-sm mb-1">로그인이 필요합니다</h3>
-                  <p className="text-xs text-slate-400">
-                    보관함을 사용해 나만의 번호를 영구히 저장하려면 이메일 계정으로 로그인해 주세요.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold"
-                >
-                  로그인 모달 열기
-                </button>
-              </div>
+              <LoginGateCard tab="locker" onLogin={() => { setPendingTab("locker"); setShowAuthModal(true); }} />
             ) : lockerLoading ? (
               <div className="py-12 text-center text-xs text-slate-400">보관된 번호를 불러오고 있습니다...</div>
             ) : savedNumbers.length === 0 ? (
@@ -1515,8 +1535,10 @@ export default function LottoLabDashboard() {
 
         {/* --- TAB: 당첨 통계 (Statistics) --- */}
         {activeTab === "stats" && (
-          <div className="space-y-6">
-            
+          !user ? (
+            <LoginGateCard tab="stats" onLogin={() => { setPendingTab("stats"); setShowAuthModal(true); }} />
+          ) : <div className="space-y-6">
+
             {/* 최근 당첨 회차 목록 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
@@ -1690,7 +1712,9 @@ export default function LottoLabDashboard() {
 
         {/* --- TAB: 모의 투자 (Simulator) --- */}
         {activeTab === "simulator" && (
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-6">
+          !user ? (
+            <LoginGateCard tab="simulator" onLogin={() => { setPendingTab("simulator"); setShowAuthModal(true); }} />
+          ) : <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-6">
             
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
@@ -1895,7 +1919,9 @@ export default function LottoLabDashboard() {
 
         {/* --- TAB: 꿈 해몽 AI (Dream) --- */}
         {activeTab === "dream" && (
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-6">
+          !user ? (
+            <LoginGateCard tab="dream" onLogin={() => { setPendingTab("dream"); setShowAuthModal(true); }} />
+          ) : <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-6">
             
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
