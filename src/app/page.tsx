@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Script from "next/script";
+import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import {
@@ -446,7 +447,7 @@ export default function LottoLabDashboard() {
         }
       } catch (err) {
         console.error("Failed to save number to Supabase:", err);
-        alert("번호를 데이터베이스에 저장하지 못했습니다.");
+        toast.error("번호를 데이터베이스에 저장하지 못했습니다.");
       }
     }
   };
@@ -545,7 +546,7 @@ export default function LottoLabDashboard() {
         setPaymentPending(false);
         setIsProMember(true);
         localStorage.setItem("lottolab_pro", "true");
-        alert("로컬 모드 테스트 결제(990원)가 성공적으로 완료되었습니다! PRO 멤버십이 가동됩니다. 모든 광고가 제거되었습니다.");
+        toast.success("로컬 모드 테스트 결제(990원) 완료! PRO 멤버십이 활성화되었습니다.");
         setShowPaymentModal(false);
       }, 1500);
     } else {
@@ -556,7 +557,7 @@ export default function LottoLabDashboard() {
           setPaymentPending(false);
           setIsProMember(true);
           localStorage.setItem("lottolab_pro", "true");
-          alert("포트원 테스트 연동 완료! PRO 멤버십이 연동되었습니다.");
+          toast.success("포트원 테스트 연동 완료! PRO 멤버십이 연동되었습니다.");
           setShowPaymentModal(false);
         }, 1200);
         return;
@@ -577,10 +578,10 @@ export default function LottoLabDashboard() {
         if (rsp.success) {
           setIsProMember(true);
           localStorage.setItem("lottolab_pro", "true");
-          alert("결제 후원이 완료되었습니다! 감사합니다. PRO 멤버십 기능이 활성화되었습니다.");
+          toast.success("결제 후원이 완료되었습니다! 감사합니다. PRO 멤버십이 활성화되었습니다.");
           setShowPaymentModal(false);
         } else {
-          alert(`결제에 실패하였습니다: ${rsp.error_msg}`);
+          toast.error(`결제에 실패하였습니다: ${rsp.error_msg}`);
         }
       });
     }
@@ -589,7 +590,7 @@ export default function LottoLabDashboard() {
   const handleCancelMembership = () => {
     setIsProMember(false);
     localStorage.removeItem("lottolab_pro");
-    alert("PRO 멤버십 구독 후원이 해제되었습니다. 다시 일반 등급으로 전환됩니다.");
+    toast("PRO 멤버십 후원이 해제되었습니다. 일반 등급으로 전환됩니다.");
   };
 
 
@@ -672,7 +673,7 @@ export default function LottoLabDashboard() {
       setDreamResult(data);
     } catch (err) {
       console.error(err);
-      alert("꿈 해몽 처리 중 오류가 발생했습니다.");
+      toast.error("꿈 해몽 처리 중 오류가 발생했습니다.");
     } finally {
       setDreamLoading(false);
     }
@@ -690,7 +691,7 @@ export default function LottoLabDashboard() {
   const handleCopyToClipboard = (nums: number[]) => {
     const text = nums.join(", ");
     navigator.clipboard.writeText(text);
-    alert(`번호 [${text}]가 클립보드에 복사되었습니다.`);
+    toast.success(`번호 [${text}] 복사됨`, { duration: 2000 });
   };
 
   // --- 통계 가공 변수 ---
@@ -2535,7 +2536,7 @@ export default function LottoLabDashboard() {
                     onClick={() => {
                       setIsProMember(true);
                       localStorage.setItem("lottolab_pro", "true");
-                      alert("후원이 접수되었습니다. 즉시 PRO 멤버십이 임시 적용됩니다! 감사합니다.");
+                      toast.success("후원이 접수되었습니다! PRO 멤버십이 즉시 적용됩니다. 감사합니다.");
                       setShowPaymentModal(false);
                     }}
                     className="w-full mt-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-800 rounded text-[11px] font-bold transition-all"
