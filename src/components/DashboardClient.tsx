@@ -46,6 +46,9 @@ import {
   Lock,
 } from "lucide-react";
 import LoginGateCard from "@/components/LoginGateCard";
+import StatsTab from "@/components/tabs/StatsTab";
+import LockerTab from "@/components/tabs/LockerTab";
+import DreamTab from "@/components/tabs/DreamTab";
 
 const GATED_TABS = ["locker", "stats", "simulator", "dream"] as const;
 
@@ -1438,331 +1441,31 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
 
         {/* --- TAB: 보관함 (Locker) --- */}
         {activeTab === "locker" && (
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md">
-            
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-5">
-              <div className="flex items-center gap-2">
-                <FolderHeart className="w-5 h-5 text-blue-400" />
-                <h2 className="font-bold text-base">내 번호 보관함</h2>
-              </div>
-              <span className="text-xs text-slate-400">
-                총 {savedNumbers.length}개 보관 중
-              </span>
-            </div>
-
-            {!user ? (
-              <LoginGateCard tab="locker" onLogin={() => { setPendingTab("locker"); setShowAuthModal(true); }} />
-            ) : lockerLoading ? (
-              <div className="py-12 text-center text-xs text-slate-400">보관된 번호를 불러오고 있습니다...</div>
-            ) : savedNumbers.length === 0 ? (
-              <div className="py-12 text-center max-w-sm mx-auto space-y-3">
-                <Bookmark className="w-8 h-8 text-slate-600 mx-auto" />
-                <div>
-                  <h3 className="font-bold text-sm mb-1">보관된 번호 없음</h3>
-                  <p className="text-xs text-slate-400">
-                    생성기 탭이나 꿈 해몽 AI 탭에서 생성된 행운의 로또 번호를 보관함에 추가해 보세요.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {savedNumbers.map((item) => {
-                  const { odd, even } = calculateOddEven(item.numbers);
-                  const sum = calculateSum(item.numbers);
-                  const dateFormatted = new Date(item.createdAt).toLocaleDateString("ko-KR", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                  });
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-4 flex flex-col justify-between gap-3 shadow-inner hover:border-slate-700/80 transition-all"
-                    >
-                      <div className="flex items-start justify-between">
-                        {/* 볼 표시 */}
-                        <div className="flex items-center gap-1.5">
-                          {item.numbers.map((n) => (
-                            <span
-                              key={n}
-                              className={`w-7 h-7 rounded-full border text-[11px] font-extrabold flex items-center justify-center shadow-inner ${getBallColor(
-                                n
-                              )}`}
-                            >
-                              {n}
-                            </span>
-                          ))}
-                        </div>
-                        
-                        {/* 액션 버튼 */}
-                        <div className="flex gap-1.5 shrink-0">
-                          <button
-                            onClick={() => handleCopyToClipboard(item.numbers)}
-                            title="복사"
-                            className="p-1.5 rounded hover:bg-slate-900 text-slate-400 hover:text-white transition-colors"
-                          >
-                            <Copy className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteNumber(item.id)}
-                            title="삭제"
-                            className="p-1.5 rounded hover:bg-slate-900 text-slate-400 hover:text-rose-400 transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 보조 상세 스펙 */}
-                      <div className="flex items-center gap-2.5 text-[10px] text-slate-400 bg-slate-900/40 p-1.5 rounded border border-slate-900/60">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-2.5 h-2.5" />
-                          {dateFormatted}
-                        </span>
-                        <span>합계: {sum}</span>
-                        <span>홀짝: {odd}:{even}</span>
-                      </div>
-
-                      {/* 메모 관리 */}
-                      <div>
-                        {editingMemoId === item.id ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={memoText}
-                              onChange={(e) => setMemoText(e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white"
-                              placeholder="메모 입력..."
-                            />
-                            <button
-                              onClick={() => handleUpdateMemo(item.id)}
-                              className="px-2.5 py-1 bg-blue-600 rounded text-[10px] font-bold text-white shrink-0"
-                            >
-                              저장
-                            </button>
-                            <button
-                              onClick={() => setEditingMemoId(null)}
-                              className="px-2 py-1 bg-slate-800 rounded text-[10px] font-bold text-slate-300 shrink-0"
-                            >
-                              취소
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-2 text-xs text-slate-300">
-                            <span className="truncate italic text-slate-400">
-                              {item.memo || "메모 기록이 없습니다."}
-                            </span>
-                            <button
-                              onClick={() => {
-                                setEditingMemoId(item.id);
-                                setMemoText(item.memo || "");
-                              }}
-                              className="text-[10px] text-blue-400 hover:text-blue-300 shrink-0 font-semibold"
-                            >
-                              {item.memo ? "수정" : "메모 추가"}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-          </div>
+          <LockerTab
+            user={user}
+            savedNumbers={savedNumbers}
+            lockerLoading={lockerLoading}
+            editingMemoId={editingMemoId}
+            memoText={memoText}
+            setMemoText={setMemoText}
+            setEditingMemoId={setEditingMemoId}
+            onLoginGate={() => { setPendingTab("locker"); setShowAuthModal(true); }}
+            onCopy={handleCopyToClipboard}
+            onDelete={handleDeleteNumber}
+            onUpdateMemo={handleUpdateMemo}
+          />
         )}
 
         {/* --- TAB: 당첨 통계 (Statistics) --- */}
         {activeTab === "stats" && (
-          !user ? (
-            <LoginGateCard tab="stats" onLogin={() => { setPendingTab("stats"); setShowAuthModal(true); }} />
-          ) : <div className="space-y-6">
-
-            {/* 데이터 기준 안내 배너 */}
-            <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-xs ${
-              isUsingMockData
-                ? "bg-amber-950/40 border-amber-800/50 text-amber-400"
-                : "bg-slate-900/50 border-slate-800 text-slate-500"
-            }`}>
-              <span>
-                {isUsingMockData
-                  ? "⚠ DB 데이터가 없어 임시 샘플 데이터를 표시 중입니다. 실제 통계는 크롤링 완료 후 자동 반영됩니다."
-                  : `데이터 기준: 제${draws[0]?.drwNo ?? 0}회차 (${draws[draws.length - 1]?.drwNo ?? 0}회차 ~ ${draws[0]?.drwNo ?? 0}회차, 총 ${draws.length}회차)`}
-              </span>
-              {isFetchingDraws && <span className="text-blue-400 animate-pulse ml-2">갱신 중...</span>}
-            </div>
-
-            {/* 최근 당첨 회차 목록 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* 왼쪽 최근 1회차 헤드라인 */}
-              <div className="lg:col-span-1 bg-gradient-to-b from-blue-950/40 to-slate-900/50 border border-blue-900/20 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-md">
-                <div>
-                  <span className="text-[10px] font-extrabold text-blue-400 px-2 py-0.5 rounded bg-blue-950 border border-blue-900/60 inline-block mb-2 uppercase">
-                    LATEST DRAW
-                  </span>
-                  <h3 className="font-extrabold text-xl mb-1 text-slate-100">
-                    제 {draws[0]?.drwNo || "0000"}회 당첨 결과
-                  </h3>
-                  <p className="text-xs text-slate-400">추첨일: {draws[0]?.drwNoDate || "2000-01-01"}</p>
-                </div>
-
-                <div className="flex items-center gap-1.5 my-3">
-                  {[draws[0]?.no1, draws[0]?.no2, draws[0]?.no3, draws[0]?.no4, draws[0]?.no5, draws[0]?.no6].map((num, idx) => (
-                    <span
-                      key={idx}
-                      className={`w-8 h-8 rounded-full border text-xs font-extrabold flex items-center justify-center shadow-lg ${
-                        num ? getBallColor(num) : "bg-slate-800 text-slate-500 border-slate-700"
-                      }`}
-                    >
-                      {num}
-                    </span>
-                  ))}
-                  <span className="text-slate-500 text-xs px-0.5">+</span>
-                  <span
-                    className={`w-8 h-8 rounded-full border text-xs font-extrabold flex items-center justify-center shadow-lg ${
-                      draws[0]?.bonusNo ? getBallColor(draws[0].bonusNo) : "bg-slate-800 text-slate-500 border-slate-700"
-                    }`}
-                  >
-                    {draws[0]?.bonusNo}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5 text-xs text-slate-400 border-t border-slate-800/80 pt-3">
-                  <div className="flex justify-between">
-                    <span>1등 당첨금 (1인당)</span>
-                    <span className="font-bold text-emerald-400">
-                      {draws[0]?.firstWinAmnt ? `${(draws[0].firstWinAmnt / 100000000).toFixed(1)}억원` : "집계 전"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>1등 당첨 인원</span>
-                    <span className="font-bold text-slate-200">
-                      {draws[0]?.firstPrzWnerCo ? `${draws[0].firstPrzWnerCo}명` : "집계 전"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 오른쪽 과거 회차 리스트 */}
-              <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="text-xs font-bold text-slate-400">최근 당첨 회차 이력 (최대 10회)</span>
-                </div>
-
-                <div className="max-h-[200px] overflow-y-auto divide-y divide-slate-800/60 pr-2">
-                  {draws.slice(0, 10).map((draw) => (
-                    <div key={draw.drwNo} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
-                      <span className="text-xs font-bold text-slate-300 w-16">{draw.drwNo}회차</span>
-                      <div className="flex items-center gap-1">
-                        {[draw.no1, draw.no2, draw.no3, draw.no4, draw.no5, draw.no6].map((num, idx) => (
-                          <span
-                            key={idx}
-                            className={`w-6 h-6 rounded-full border text-[9px] font-bold flex items-center justify-center ${getBallColor(
-                              num
-                            )}`}
-                          >
-                            {num}
-                          </span>
-                        ))}
-                        <span className="text-[9px] text-slate-600 px-0.5">+</span>
-                        <span
-                          className={`w-6 h-6 rounded-full border text-[9px] font-bold flex items-center justify-center ${getBallColor(
-                            draw.bonusNo
-                          )}`}
-                        >
-                          {draw.bonusNo}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 hidden sm:inline">{draw.drwNoDate}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-
-            {/* 통계 지표 대시보드 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              {/* 1. 최빈 번호 */}
-              <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md">
-                <h3 className="font-bold text-xs text-slate-400 mb-3 flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
-                  많이 출현한 번호 (TOP 10)
-                </h3>
-                <div className="grid grid-cols-5 gap-2.5">
-                  {statsData.topNumbers.map((item) => (
-                    <div key={item.num} className="flex flex-col items-center gap-1 bg-slate-950 p-1.5 rounded border border-slate-900">
-                      <span className={`w-6 h-6 rounded-full border text-[9px] font-extrabold flex items-center justify-center ${getBallColor(item.num)}`}>
-                        {item.num}
-                      </span>
-                      <span className="text-[9px] text-slate-400 font-bold">{item.count}회</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. 최저빈 번호 */}
-              <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md">
-                <h3 className="font-bold text-xs text-slate-400 mb-3 flex items-center gap-1.5">
-                  <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
-                  적게 출현한 번호 (LAST 10)
-                </h3>
-                <div className="grid grid-cols-5 gap-2.5">
-                  {statsData.bottomNumbers.map((item) => (
-                    <div key={item.num} className="flex flex-col items-center gap-1 bg-slate-950 p-1.5 rounded border border-slate-900">
-                      <span className={`w-6 h-6 rounded-full border text-[9px] font-extrabold flex items-center justify-center ${getBallColor(item.num)}`}>
-                        {item.num}
-                      </span>
-                      <span className="text-[9px] text-slate-400 font-bold">{item.count}회</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 3. 홀짝 통계 비율 */}
-              <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md flex flex-col justify-between">
-                <h3 className="font-bold text-xs text-slate-400 mb-3 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-blue-400" />
-                  역대 당첨 번호 홀짝 분포
-                </h3>
-
-                <div className="space-y-4">
-                  {/* 홀수 바 */}
-                  <div>
-                    <div className="flex justify-between text-[10px] font-bold text-slate-300 mb-1">
-                      <span>홀수 (Odd Numbers)</span>
-                      <span>{statsData.oddPct}%</span>
-                    </div>
-                    <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-900">
-                      <div className="bg-blue-600 h-full rounded-full" style={{ width: `${statsData.oddPct}%` }} />
-                    </div>
-                  </div>
-
-                  {/* 짝수 바 */}
-                  <div>
-                    <div className="flex justify-between text-[10px] font-bold text-slate-300 mb-1">
-                      <span>짝수 (Even Numbers)</span>
-                      <span>{statsData.evenPct}%</span>
-                    </div>
-                    <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-900">
-                      <div className="bg-rose-500 h-full rounded-full" style={{ width: `${statsData.evenPct}%` }} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-[9px] text-slate-500 mt-4 text-center">
-                  * 역대 수집된 당첨 정보 {draws.length}회차의 모든 공 기준 통계
-                </div>
-              </div>
-
-            </div>
-
-          </div>
+          <StatsTab
+            user={user}
+            draws={draws}
+            statsData={statsData}
+            isUsingMockData={isUsingMockData}
+            isFetchingDraws={isFetchingDraws}
+            onLoginGate={() => { setPendingTab("stats"); setShowAuthModal(true); }}
+          />
         )}
 
         {/* --- TAB: 모의 투자 (Simulator) --- */}
@@ -2015,187 +1718,21 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
 
         {/* --- TAB: 꿈 해몽 AI (Dream) --- */}
         {activeTab === "dream" && (
-          !user ? (
-            <LoginGateCard tab="dream" onLogin={() => { setPendingTab("dream"); setShowAuthModal(true); }} />
-          ) : <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-6">
-            
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Brain className="w-5 h-5 text-blue-400" />
-                <h2 className="font-bold text-base">Gemini AI 꿈 해몽 번호 추출</h2>
-              </div>
-              <span className="text-xs text-slate-400">꿈속 상징을 분석해 로또 추천 번호로 치환합니다.</span>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* 왼쪽 서술 폼 */}
-              <div className="lg:col-span-6 space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-2">꿈 내용 서술하기</label>
-                  <textarea
-                    value={dreamInput}
-                    onChange={(e) => setDreamInput(e.target.value)}
-                    rows={6}
-                    maxLength={300}
-                    placeholder="어젯밤에 꾼 꿈을 가급적 구체적으로 적어주세요. (예: 깊고 맑은 물속에서 거대한 거북이가 황금 동전을 입에 물고 헤엄쳐와 내 품에 안기는 꿈)"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/80 resize-none"
-                  />
-                  <div className="text-[10px] text-slate-500 text-right mt-1">
-                    {dreamInput.length} / 300자
-                  </div>
-                </div>
-
-                <button
-                  disabled={!dreamInput.trim() || dreamLoading}
-                  onClick={handleDreamInterpret}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_15px_rgba(37,99,235,0.2)]"
-                >
-                  {dreamLoading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                      Gemini AI 꿈 심볼 분석 중...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      AI 해몽 분석 및 번호 추출
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* 오른쪽 결과 패널 */}
-              <div className="lg:col-span-6 bg-slate-950 p-5 rounded-lg border border-slate-800 flex flex-col justify-between min-h-[300px]">
-                
-                {dreamLoading ? (
-                  <div className="flex flex-col items-center justify-center text-center h-full py-16 space-y-3">
-                    <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-200">꿈 분석 분석관 구동 중</h4>
-                      <p className="text-[10px] text-slate-500 max-w-xs mt-1">
-                        거대 언어 모델(Gemini)이 꿈의 상징을 분석해 행운의 키워드를 파싱하고 로또 번호 가중치를 결합 중입니다.
-                      </p>
-                    </div>
-                  </div>
-                ) : !dreamResult ? (
-                  <div className="flex flex-col items-center justify-center text-center h-full py-16 text-slate-500">
-                    <Brain className="w-10 h-10 text-slate-700 mb-2" />
-                    <h3 className="font-bold text-xs text-slate-400">분석 대기 중</h3>
-                    <p className="text-[10px] max-w-xs mt-1">
-                      왼쪽 칸에 해몽할 꿈 내용을 입력하고 분석을 클릭하세요.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    
-                    {/* 상단 뱃지 */}
-                    <div className="flex justify-between items-center border-b border-slate-900 pb-2">
-                      <span className="text-[10px] font-bold text-slate-500">
-                        {dreamResult.isRealAi ? "Gemini 1.5 Flash 실시간 AI 분석" : "로컬 매칭 분석 결과"}
-                      </span>
-                      <div className="flex gap-1.5">
-                        {dreamResult.keywords.map((kw, i) => (
-                          <span key={i} className="text-[9px] font-semibold px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-900/60">
-                            #{kw}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 해석 텍스트 */}
-                    <div className="bg-slate-900/80 p-3.5 rounded border border-slate-900 text-xs text-slate-300 leading-5">
-                      <p className="font-bold text-blue-400 mb-1">AI 해몽 진단</p>
-                      {dreamResult.interpretation}
-                    </div>
-
-                    {/* 도출 번호 */}
-                    <div className="text-center py-4 bg-slate-900/40 rounded border border-slate-900">
-                      <span className="text-[10px] text-slate-500 block mb-2">꿈의 상징과 매칭된 행운의 6개 번호</span>
-                      <div className="flex justify-center gap-1.5">
-                        {dreamResult.numbers.map((n) => (
-                          <span key={n} className={`w-8 h-8 rounded-full border text-xs font-extrabold flex items-center justify-center shadow-lg ${getBallColor(n)}`}>
-                            {n}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 액션 */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleCopyToClipboard(dreamResult.numbers)}
-                        className="flex-1 py-2 rounded bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition-colors"
-                      >
-                        클립보드 복사
-                      </button>
-                      <button
-                        onClick={handleSaveDreamNumbers}
-                        disabled={dreamSaveSuccess}
-                        className={`flex-1 py-2 rounded text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all ${
-                          dreamSaveSuccess
-                            ? "bg-emerald-950 border-emerald-900 text-emerald-400 border"
-                            : "bg-blue-600 hover:bg-blue-500"
-                        }`}
-                      >
-                        {dreamSaveSuccess ? (
-                          <>
-                            <CheckCircle className="w-3.5 h-3.5" />
-                            보관함 저장 완료
-                          </>
-                        ) : (
-                          <>
-                            <Bookmark className="w-3.5 h-3.5" />
-                            보관함에 저장하기
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                  </div>
-                )}
-
-              </div>
-
-            </div>
-
-            {/* 내 해몽 히스토리 */}
-            {isSupabaseConfigured && (
-              <div className="border-t border-slate-800 pt-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-300">내 해몽 히스토리</h3>
-                  {dreamHistoryLoading && <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />}
-                </div>
-                {dreamHistory.length === 0 && !dreamHistoryLoading ? (
-                  <p className="text-xs text-slate-600 py-3 text-center">저장된 해몽 기록이 없습니다.</p>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                    {dreamHistory.map((log) => (
-                      <div key={log.id} className="bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-[11px] text-slate-400 line-clamp-2 flex-1">{log.dream_text}</p>
-                          <span className="text-[10px] text-slate-600 shrink-0">
-                            {new Date(log.created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}
-                          </span>
-                        </div>
-                        <div className="flex gap-1 flex-wrap">
-                          {(log.keywords ?? []).map((kw, i) => (
-                            <span key={i} className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-900/60">#{kw}</span>
-                          ))}
-                        </div>
-                        <div className="flex gap-1">
-                          {(log.numbers ?? []).map((n) => (
-                            <span key={n} className={`w-6 h-6 rounded-full text-[10px] font-extrabold flex items-center justify-center ${getBallColor(n)}`}>{n}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-          </div>
+          <DreamTab
+            user={user}
+            dreamInput={dreamInput}
+            setDreamInput={setDreamInput}
+            dreamLoading={dreamLoading}
+            dreamResult={dreamResult}
+            dreamSaveSuccess={dreamSaveSuccess}
+            dreamHistory={dreamHistory}
+            dreamHistoryLoading={dreamHistoryLoading}
+            isSupabaseConfigured={isSupabaseConfigured}
+            onLoginGate={() => { setPendingTab("dream"); setShowAuthModal(true); }}
+            onInterpret={handleDreamInterpret}
+            onCopy={handleCopyToClipboard}
+            onSaveDreamNumbers={handleSaveDreamNumbers}
+          />
         )}
 
       </main>
