@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Script from "next/script";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -100,6 +100,8 @@ export default function LottoLabDashboard() {
   // 3. 통계 및 역사 데이터 상태
   const [draws, setDraws] = useState<LottoDraw[]>(mockLottoDraws);
   const [isFetchingDraws, setIsFetchingDraws] = useState(false);
+  const [isUsingMockData, setIsUsingMockData] = useState(false);
+  const crawlAttempted = useRef(false);
 
   // 4. 시뮬레이터 상태
   const [selectedSimSet, setSelectedSimSet] = useState<number[] | null>(null);
@@ -236,13 +238,22 @@ export default function LottoLabDashboard() {
           firstPrzWnerCo: d.first_prz_wner_co ? Number(d.first_prz_wner_co) : undefined,
         }));
         setDraws(mapped);
+        setIsUsingMockData(false);
       } else {
-        // DB에 데이터가 없으면 크롤링 호출을 유도하기 위해 Mock 사용
+        // DB 비어있음: Mock 폴백 후 크롤링 1회 자동 트리거
         setDraws(mockLottoDraws);
+        setIsUsingMockData(true);
+        if (!crawlAttempted.current) {
+          crawlAttempted.current = true;
+          fetch("/api/crawl")
+            .then(() => loadLottoDraws())
+            .catch(() => {});
+        }
       }
     } catch (err) {
       console.error("Failed to load draws from DB, falling back to mock:", err);
       setDraws(mockLottoDraws);
+      setIsUsingMockData(true);
     } finally {
       setIsFetchingDraws(false);
     }
@@ -1556,6 +1567,20 @@ export default function LottoLabDashboard() {
             <LoginGateCard tab="stats" onLogin={() => { setPendingTab("stats"); setShowAuthModal(true); }} />
           ) : <div className="space-y-6">
 
+            {/* 데이터 기준 안내 배너 */}
+            <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-xs ${
+              isUsingMockData
+                ? "bg-amber-950/40 border-amber-800/50 text-amber-400"
+                : "bg-slate-900/50 border-slate-800 text-slate-500"
+            }`}>
+              <span>
+                {isUsingMockData
+                  ? "⚠ DB 데이터가 없어 임시 샘플 데이터를 표시 중입니다. 실제 통계는 크롤링 완료 후 자동 반영됩니다."
+                  : `데이터 기준: 제${draws[0]?.drwNo ?? 0}회차 (${draws[draws.length - 1]?.drwNo ?? 0}회차 ~ ${draws[0]?.drwNo ?? 0}회차, 총 ${draws.length}회차)`}
+              </span>
+              {isFetchingDraws && <span className="text-blue-400 animate-pulse ml-2">갱신 중...</span>}
+            </div>
+
             {/* 최근 당첨 회차 목록 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
@@ -1612,7 +1637,6 @@ export default function LottoLabDashboard() {
               <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-xl p-5 shadow-md space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <span className="text-xs font-bold text-slate-400">최근 당첨 회차 이력 (최대 10회)</span>
-                  {isFetchingDraws && <span className="text-[10px] text-blue-400 animate-pulse">갱신 중...</span>}
                 </div>
 
                 <div className="max-h-[200px] overflow-y-auto divide-y divide-slate-800/60 pr-2">
