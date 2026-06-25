@@ -50,7 +50,7 @@ import LoginGateCard from "@/components/LoginGateCard";
 const GATED_TABS = ["locker", "stats", "simulator", "dream"] as const;
 
 export default function LottoLabDashboard() {
-  const { user, isLoading: authLoading, isLocalMode, isPro, refreshProStatus, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
+  const { user, isLoading: authLoading, isLocalMode, isPro, proExpiresAt, refreshProStatus, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
 
   // UI 상태 관리
   const [activeTab, setActiveTab] = useState<"generator" | "locker" | "stats" | "simulator" | "dream">("generator");
@@ -975,6 +975,20 @@ export default function LottoLabDashboard() {
             </div>
           </div>
         )}
+
+        {/* PRO 만료 D-3 경고 배너 */}
+        {isProMember && proExpiresAt && (() => {
+          const daysLeft = Math.ceil((new Date(proExpiresAt).getTime() - Date.now()) / 86400000);
+          return daysLeft <= 3 && daysLeft > 0 ? (
+            <div className="mb-6 p-3 bg-rose-950/40 border border-rose-800/50 rounded-lg text-xs text-rose-300 flex items-center gap-2.5">
+              <span className="font-bold shrink-0">PRO 만료 D-{daysLeft}</span>
+              <span>
+                PRO 멤버십이 <strong>{new Date(proExpiresAt).toLocaleDateString("ko-KR")}</strong>에 만료됩니다.
+                갱신하지 않으면 일반 등급으로 전환됩니다.
+              </span>
+            </div>
+          ) : null;
+        })()}
 
         {/* --- TAB: 번호 생성기 (Generator) --- */}
         {activeTab === "generator" && (

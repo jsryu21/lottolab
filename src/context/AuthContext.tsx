@@ -13,6 +13,7 @@ interface AuthContextType {
   isLoading: boolean;
   isLocalMode: boolean;
   isPro: boolean;
+  proExpiresAt: string | null;
   refreshProStatus: () => Promise<void>;
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, pass: string) => Promise<{ success: boolean; requiresOtp?: boolean; error?: string }>;
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPro, setIsPro] = useState(false);
+  const [proExpiresAt, setProExpiresAt] = useState<string | null>(null);
   const isLocalMode = !isSupabaseConfigured;
 
   const fetchProStatus = async (userId: string) => {
@@ -44,8 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const notExpired =
           !data.pro_expires_at || new Date(data.pro_expires_at) > new Date();
         setIsPro(data.is_pro && notExpired);
+        setProExpiresAt(data.pro_expires_at ?? null);
       } else {
         setIsPro(false);
+        setProExpiresAt(null);
       }
     } catch {
       setIsPro(false);
@@ -155,10 +159,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     setIsPro(false);
+    setProExpiresAt(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isLocalMode, isPro, refreshProStatus, login, signUp, verifyOtp, resendOtp, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isLocalMode, isPro, proExpiresAt, refreshProStatus, login, signUp, verifyOtp, resendOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );
