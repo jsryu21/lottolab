@@ -1415,22 +1415,13 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
 
                           {/* 광고 지면: PRO 미가입 사용자에게 3세트마다 노출 */}
                           {!isProMember && (idx + 1) % 3 === 0 && (
-                            process.env.NEXT_PUBLIC_ADSENSE_SLOT_INLINE ? (
-                              <div className="my-3">
-                                <AdBanner
-                                  adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_INLINE}
-                                  adFormat="auto"
-                                  className="rounded-lg overflow-hidden"
-                                />
-                              </div>
-                            ) : (
-                              <div className="my-3 py-3 px-4 rounded-lg bg-slate-950/60 border border-dashed border-slate-800/80 flex items-center justify-between gap-3 text-xs">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[9px] px-1.5 py-0.5 bg-slate-900 border border-slate-800 text-slate-500 rounded font-semibold tracking-wider uppercase scale-90">AD</span>
-                                  <p className="text-slate-400 text-[11px]">광고 영역 (AdSense 연동 후 자동 표시됩니다)</p>
-                                </div>
-                              </div>
-                            )
+                            <div className="my-3">
+                              <AdBanner
+                                adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_INLINE ?? ""}
+                                adFormat="auto"
+                                className="rounded-lg"
+                              />
+                            </div>
                           )}
                         </React.Fragment>
                       );
