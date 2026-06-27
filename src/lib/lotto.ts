@@ -205,28 +205,29 @@ export const presetDreamKeywords: Record<string, number[]> = {
   똥: [4, 15, 25, 33, 40],
 };
 
-// 폴백용 Mock 데이터 (2026년 6월 기준 최신 20회차 — DB 연동 시 실제 데이터로 대체됨)
+// 폴백용 샘플 데이터 (DB 연동 및 크롤링 완료 전 UI 미리보기용)
+// 실제 당첨 번호는 DB 크롤링 후 자동 대체됨
 export const mockLottoDraws: LottoDraw[] = [
-  { drwNo: 1229, drwNoDate: "2026-06-20", no1: 4, no2: 11, no3: 22, no4: 31, no5: 38, no6: 43, bonusNo: 17, totSellAmnt: 115200000000, firstWinAmnt: 2341000000, firstPrzWnerCo: 12 },
-  { drwNo: 1228, drwNoDate: "2026-06-13", no1: 2, no2: 9, no3: 18, no4: 27, no5: 36, no6: 45, bonusNo: 33, totSellAmnt: 114900000000, firstWinAmnt: 3012000000, firstPrzWnerCo: 9 },
-  { drwNo: 1227, drwNoDate: "2026-06-06", no1: 7, no2: 14, no3: 23, no4: 29, no5: 37, no6: 42, bonusNo: 5, totSellAmnt: 115600000000, firstWinAmnt: 1892000000, firstPrzWnerCo: 14 },
-  { drwNo: 1226, drwNoDate: "2026-05-30", no1: 1, no2: 8, no3: 19, no4: 28, no5: 34, no6: 41, bonusNo: 25, totSellAmnt: 114300000000, firstWinAmnt: 2654000000, firstPrzWnerCo: 10 },
-  { drwNo: 1225, drwNoDate: "2026-05-23", no1: 5, no2: 16, no3: 24, no4: 32, no5: 39, no6: 44, bonusNo: 12, totSellAmnt: 115100000000, firstWinAmnt: 1743000000, firstPrzWnerCo: 16 },
-  { drwNo: 1224, drwNoDate: "2026-05-16", no1: 3, no2: 10, no3: 21, no4: 30, no5: 35, no6: 40, bonusNo: 7, totSellAmnt: 114700000000, firstWinAmnt: 2890000000, firstPrzWnerCo: 9 },
-  { drwNo: 1223, drwNoDate: "2026-05-09", no1: 6, no2: 15, no3: 20, no4: 26, no5: 33, no6: 43, bonusNo: 38, totSellAmnt: 115400000000, firstWinAmnt: 2103000000, firstPrzWnerCo: 12 },
-  { drwNo: 1222, drwNoDate: "2026-05-02", no1: 2, no2: 13, no3: 25, no4: 31, no5: 37, no6: 42, bonusNo: 19, totSellAmnt: 114800000000, firstWinAmnt: 1560000000, firstPrzWnerCo: 18 },
-  { drwNo: 1221, drwNoDate: "2026-04-25", no1: 8, no2: 17, no3: 22, no4: 29, no5: 36, no6: 45, bonusNo: 11, totSellAmnt: 115900000000, firstWinAmnt: 3250000000, firstPrzWnerCo: 8 },
-  { drwNo: 1220, drwNoDate: "2026-04-18", no1: 1, no2: 12, no3: 23, no4: 32, no5: 38, no6: 41, bonusNo: 6, totSellAmnt: 115200000000, firstWinAmnt: 2430000000, firstPrzWnerCo: 11 },
-  { drwNo: 1219, drwNoDate: "2026-04-11", no1: 4, no2: 9, no3: 18, no4: 27, no5: 34, no6: 43, bonusNo: 22, totSellAmnt: 114600000000, firstWinAmnt: 1981000000, firstPrzWnerCo: 13 },
-  { drwNo: 1218, drwNoDate: "2026-04-04", no1: 3, no2: 14, no3: 21, no4: 30, no5: 39, no6: 44, bonusNo: 8, totSellAmnt: 115300000000, firstWinAmnt: 2761000000, firstPrzWnerCo: 9 },
-  { drwNo: 1217, drwNoDate: "2026-03-28", no1: 7, no2: 16, no3: 24, no4: 28, no5: 33, no6: 40, bonusNo: 35, totSellAmnt: 114400000000, firstWinAmnt: 1620000000, firstPrzWnerCo: 17 },
-  { drwNo: 1216, drwNoDate: "2026-03-21", no1: 5, no2: 11, no3: 19, no4: 26, no5: 37, no6: 42, bonusNo: 2, totSellAmnt: 115700000000, firstWinAmnt: 2980000000, firstPrzWnerCo: 9 },
-  { drwNo: 1215, drwNoDate: "2026-03-14", no1: 2, no2: 15, no3: 22, no4: 31, no5: 36, no6: 45, bonusNo: 29, totSellAmnt: 114100000000, firstWinAmnt: 1840000000, firstPrzWnerCo: 14 },
-  { drwNo: 1214, drwNoDate: "2026-03-07", no1: 6, no2: 13, no3: 20, no4: 27, no5: 38, no6: 41, bonusNo: 4, totSellAmnt: 115500000000, firstWinAmnt: 2210000000, firstPrzWnerCo: 12 },
-  { drwNo: 1213, drwNoDate: "2026-02-28", no1: 1, no2: 10, no3: 23, no4: 32, no5: 35, no6: 43, bonusNo: 18, totSellAmnt: 114200000000, firstWinAmnt: 3100000000, firstPrzWnerCo: 8 },
-  { drwNo: 1212, drwNoDate: "2026-02-21", no1: 4, no2: 17, no3: 25, no4: 29, no5: 34, no6: 40, bonusNo: 13, totSellAmnt: 115000000000, firstWinAmnt: 1720000000, firstPrzWnerCo: 16 },
-  { drwNo: 1211, drwNoDate: "2026-02-14", no1: 8, no2: 12, no3: 21, no4: 28, no5: 37, no6: 44, bonusNo: 6, totSellAmnt: 114800000000, firstWinAmnt: 2560000000, firstPrzWnerCo: 10 },
-  { drwNo: 1210, drwNoDate: "2026-02-07", no1: 3, no2: 9, no3: 18, no4: 30, no5: 39, no6: 42, bonusNo: 24, totSellAmnt: 115100000000, firstWinAmnt: 1930000000, firstPrzWnerCo: 13 },
+  { drwNo: 1229, drwNoDate: "2026-06-20", no1: 3, no2: 14, no3: 22, no4: 30, no5: 38, no6: 44, bonusNo: 17, totSellAmnt: 115200000000, firstWinAmnt: 2341000000, firstPrzWnerCo: 12 },
+  { drwNo: 1228, drwNoDate: "2026-06-13", no1: 6, no2: 11, no3: 19, no4: 28, no5: 37, no6: 43, bonusNo: 2, totSellAmnt: 114900000000, firstWinAmnt: 3012000000, firstPrzWnerCo: 9 },
+  { drwNo: 1227, drwNoDate: "2026-06-06", no1: 1, no2: 13, no3: 24, no4: 31, no5: 39, no6: 45, bonusNo: 8, totSellAmnt: 115600000000, firstWinAmnt: 1892000000, firstPrzWnerCo: 14 },
+  { drwNo: 1226, drwNoDate: "2026-05-30", no1: 5, no2: 16, no3: 20, no4: 27, no5: 36, no6: 41, bonusNo: 33, totSellAmnt: 114300000000, firstWinAmnt: 2654000000, firstPrzWnerCo: 10 },
+  { drwNo: 1225, drwNoDate: "2026-05-23", no1: 4, no2: 9, no3: 21, no4: 32, no5: 40, no6: 44, bonusNo: 15, totSellAmnt: 115100000000, firstWinAmnt: 1743000000, firstPrzWnerCo: 16 },
+  { drwNo: 1224, drwNoDate: "2026-05-16", no1: 7, no2: 18, no3: 23, no4: 29, no5: 35, no6: 42, bonusNo: 11, totSellAmnt: 114700000000, firstWinAmnt: 2890000000, firstPrzWnerCo: 9 },
+  { drwNo: 1223, drwNoDate: "2026-05-09", no1: 2, no2: 10, no3: 17, no4: 26, no5: 34, no6: 43, bonusNo: 39, totSellAmnt: 115400000000, firstWinAmnt: 2103000000, firstPrzWnerCo: 12 },
+  { drwNo: 1222, drwNoDate: "2026-05-02", no1: 8, no2: 15, no3: 25, no4: 33, no5: 38, no6: 45, bonusNo: 20, totSellAmnt: 114800000000, firstWinAmnt: 1560000000, firstPrzWnerCo: 18 },
+  { drwNo: 1221, drwNoDate: "2026-04-25", no1: 3, no2: 12, no3: 22, no4: 28, no5: 36, no6: 41, bonusNo: 5, totSellAmnt: 115900000000, firstWinAmnt: 3250000000, firstPrzWnerCo: 8 },
+  { drwNo: 1220, drwNoDate: "2026-04-18", no1: 6, no2: 19, no3: 24, no4: 30, no5: 37, no6: 44, bonusNo: 13, totSellAmnt: 115200000000, firstWinAmnt: 2430000000, firstPrzWnerCo: 11 },
+  { drwNo: 1219, drwNoDate: "2026-04-11", no1: 1, no2: 8, no3: 16, no4: 27, no5: 35, no6: 42, bonusNo: 23, totSellAmnt: 114600000000, firstWinAmnt: 1981000000, firstPrzWnerCo: 13 },
+  { drwNo: 1218, drwNoDate: "2026-04-04", no1: 4, no2: 14, no3: 21, no4: 31, no5: 39, no6: 45, bonusNo: 9, totSellAmnt: 115300000000, firstWinAmnt: 2761000000, firstPrzWnerCo: 9 },
+  { drwNo: 1217, drwNoDate: "2026-03-28", no1: 7, no2: 11, no3: 18, no4: 26, no5: 33, no6: 40, bonusNo: 36, totSellAmnt: 114400000000, firstWinAmnt: 1620000000, firstPrzWnerCo: 17 },
+  { drwNo: 1216, drwNoDate: "2026-03-21", no1: 2, no2: 13, no3: 23, no4: 29, no5: 38, no6: 43, bonusNo: 6, totSellAmnt: 115700000000, firstWinAmnt: 2980000000, firstPrzWnerCo: 9 },
+  { drwNo: 1215, drwNoDate: "2026-03-14", no1: 5, no2: 17, no3: 22, no4: 32, no5: 37, no6: 44, bonusNo: 28, totSellAmnt: 114100000000, firstWinAmnt: 1840000000, firstPrzWnerCo: 14 },
+  { drwNo: 1214, drwNoDate: "2026-03-07", no1: 3, no2: 10, no3: 20, no4: 25, no5: 34, no6: 41, bonusNo: 16, totSellAmnt: 115500000000, firstWinAmnt: 2210000000, firstPrzWnerCo: 12 },
+  { drwNo: 1213, drwNoDate: "2026-02-28", no1: 9, no2: 15, no3: 24, no4: 30, no5: 36, no6: 42, bonusNo: 19, totSellAmnt: 114200000000, firstWinAmnt: 3100000000, firstPrzWnerCo: 8 },
+  { drwNo: 1212, drwNoDate: "2026-02-21", no1: 4, no2: 12, no3: 21, no4: 28, no5: 35, no6: 45, bonusNo: 7, totSellAmnt: 115000000000, firstWinAmnt: 1720000000, firstPrzWnerCo: 16 },
+  { drwNo: 1211, drwNoDate: "2026-02-14", no1: 1, no2: 16, no3: 23, no4: 31, no5: 38, no6: 43, bonusNo: 10, totSellAmnt: 114800000000, firstWinAmnt: 2560000000, firstPrzWnerCo: 10 },
+  { drwNo: 1210, drwNoDate: "2026-02-07", no1: 6, no2: 14, no3: 19, no4: 27, no5: 33, no6: 40, bonusNo: 44, totSellAmnt: 115100000000, firstWinAmnt: 1930000000, firstPrzWnerCo: 13 },
 ];
 
 export interface PerformanceReport {

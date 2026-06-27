@@ -132,18 +132,26 @@ async function fetchDrawFromAPI(drwNo: number): Promise<DonghaengResponse | null
     const res = await fetch(
       `https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${drwNo}`,
       {
-        next: { revalidate: 3600 }, // 캐시 설정
+        cache: "no-store",
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "application/json, text/javascript, */*; q=0.01",
+          "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+          "Referer": "https://www.dhlottery.co.kr/gameInfo.do?method=lottoBuyInfo",
+          "X-Requested-With": "XMLHttpRequest",
         },
+        redirect: "follow",
       }
     );
-    
+
     if (!res.ok) return null;
-    
+
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("json") && !contentType.includes("javascript")) return null;
+
     const data = (await res.json()) as DonghaengResponse;
     if (data.returnValue !== "success") return null;
-    
+
     return data;
   } catch (error) {
     console.error(`Error fetching draw ${drwNo} from API:`, error);
