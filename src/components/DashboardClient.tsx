@@ -49,6 +49,7 @@ import LoginGateCard from "@/components/LoginGateCard";
 import StatsTab from "@/components/tabs/StatsTab";
 import LockerTab from "@/components/tabs/LockerTab";
 import DreamTab from "@/components/tabs/DreamTab";
+import AdBanner from "@/components/AdBanner";
 
 const GATED_TABS = ["locker", "stats", "simulator", "dream"] as const;
 
@@ -1412,20 +1413,24 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
                             </div>
                           </div>
 
-                          {/* 네이티브 하이브리드 광고 지면 (PRO 멤버가 아닐 때 2번째 또는 3번째 세트 뒤 노출) */}
+                          {/* 광고 지면: PRO 미가입 사용자에게 3세트마다 노출 */}
                           {!isProMember && (idx + 1) % 3 === 0 && (
-                            <div className="my-3 py-3 px-4 rounded-lg bg-slate-950/60 border border-dashed border-slate-800/80 flex items-center justify-between gap-3 text-xs">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] px-1.5 py-0.5 bg-slate-900 border border-slate-800 text-slate-500 rounded font-semibold tracking-wider uppercase scale-90">Sponsor</span>
-                                <p className="text-slate-400 text-[11px]">로또랩을 후원하고 모든 배너 광고를 차단하세요! (월 990원)</p>
+                            process.env.NEXT_PUBLIC_ADSENSE_SLOT_INLINE ? (
+                              <div className="my-3">
+                                <AdBanner
+                                  adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_INLINE}
+                                  adFormat="auto"
+                                  className="rounded-lg overflow-hidden"
+                                />
                               </div>
-                              <button
-                                onClick={() => setShowPaymentModal(true)}
-                                className="text-[10px] font-bold text-blue-400 hover:text-blue-300 hover:underline shrink-0"
-                              >
-                                PRO 가입
-                              </button>
-                            </div>
+                            ) : (
+                              <div className="my-3 py-3 px-4 rounded-lg bg-slate-950/60 border border-dashed border-slate-800/80 flex items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-slate-900 border border-slate-800 text-slate-500 rounded font-semibold tracking-wider uppercase scale-90">AD</span>
+                                  <p className="text-slate-400 text-[11px]">광고 영역 (AdSense 연동 후 자동 표시됩니다)</p>
+                                </div>
+                              </div>
+                            )
                           )}
                         </React.Fragment>
                       );
