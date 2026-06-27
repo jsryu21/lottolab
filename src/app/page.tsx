@@ -17,7 +17,16 @@ async function fetchInitialDraws(): Promise<LottoDraw[]> {
       .select("*")
       .order("drw_no", { ascending: false });
 
-    if (error || !data || data.length === 0) return mockLottoDraws;
+    if (error) return mockLottoDraws;
+
+    if (!data || data.length === 0) {
+      // DB가 비어있으면 백그라운드로 크롤링 트리거 (결과 안 기다림)
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000";
+      fetch(`${baseUrl}/api/crawl`, { cache: "no-store" }).catch(() => {});
+      return mockLottoDraws;
+    }
 
     return data.map((d) => ({
       drwNo: Number(d.drw_no),
