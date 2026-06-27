@@ -56,10 +56,10 @@ export default function SimulatorTab({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-6 md:items-start">
 
       {/* 설정 카드 */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-5">
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-5 md:sticky md:top-[121px]">
         <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
           <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
             <Play className="w-4 h-4 text-indigo-600" />
@@ -160,7 +160,8 @@ export default function SimulatorTab({
         </button>
       </div>
 
-      {/* 결과 카드 */}
+      {/* 결과 영역 (데스크톱에서 오른쪽 컬럼) */}
+      <div className="space-y-4">
       {simResults && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
           <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">시뮬레이션 결과</h3>
@@ -217,6 +218,7 @@ export default function SimulatorTab({
           <p className="text-[11px] text-slate-400 mt-1">번호와 예산을 선택하고 시뮬레이션을 시작하세요.</p>
         </div>
       )}
+      </div>
     </div>
   );
 }
