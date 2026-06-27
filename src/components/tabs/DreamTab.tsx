@@ -34,6 +34,7 @@ interface DreamTabProps {
   onInterpret: () => void;
   onCopy: (numbers: number[]) => void;
   onSaveDreamNumbers: () => void;
+  onSaveHistoryNumbers: (numbers: number[]) => void;
 }
 
 export default function DreamTab({
@@ -50,6 +51,7 @@ export default function DreamTab({
   onInterpret,
   onCopy,
   onSaveDreamNumbers,
+  onSaveHistoryNumbers,
 }: DreamTabProps) {
   if (!user) {
     return <LoginGateCard tab="dream" onLogin={onLoginGate} />;
@@ -189,10 +191,19 @@ export default function DreamTab({
                       <span key={i} className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-900/60">#{kw}</span>
                     ))}
                   </div>
-                  <div className="flex gap-1">
-                    {(log.numbers ?? []).map((n) => (
-                      <span key={n} className={`w-6 h-6 rounded-full text-[10px] font-extrabold flex items-center justify-center ${getLottoBallColor(n)}`}>{n}</span>
-                    ))}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex gap-1">
+                      {(log.numbers ?? []).map((n) => (
+                        <span key={n} className={`w-6 h-6 rounded-full text-[10px] font-extrabold flex items-center justify-center ${getLottoBallColor(n)}`}>{n}</span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => onSaveHistoryNumbers(log.numbers ?? [])}
+                      className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded border bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 transition-all shrink-0"
+                    >
+                      <Bookmark className="w-3 h-3" />
+                      보관
+                    </button>
                   </div>
                 </div>
               ))}
