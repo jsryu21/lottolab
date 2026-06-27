@@ -336,6 +336,7 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
 
+
           {/* Logo */}
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
@@ -389,8 +390,38 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
         </div>
       </header>
 
+      {/* Desktop Tab Navigation (md 이상만 표시) */}
+      <div className="hidden md:block sticky top-[65px] z-30 bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center gap-0">
+            {TAB_NAV.map(({ id, icon: Icon, label, gated }) => {
+              const isActive = activeTab === id;
+              const isLocked = gated && !user;
+              return (
+                <button
+                  key={id}
+                  onClick={() => {
+                    if (isLocked) { setPendingTab(id); setShowAuthModal(true); return; }
+                    setActiveTab(id);
+                  }}
+                  className={`flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 transition-all ${
+                    isActive
+                      ? "border-indigo-600 text-indigo-600"
+                      : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                  {isLocked && <Lock className="w-3 h-3 text-slate-300" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 py-5 pb-28">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 py-5 pb-28 md:pb-8">
 
         {/* Local Mode Banner */}
         {isLocalMode && (
@@ -506,8 +537,8 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
         )}
       </main>
 
-      {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+      {/* Bottom Navigation Bar (모바일 전용) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
         <div className="max-w-7xl mx-auto flex items-center justify-around px-2 py-1">
           {TAB_NAV.map(({ id, icon: Icon, label, gated }) => {
             const isActive = activeTab === id;
@@ -540,8 +571,7 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
       </nav>
 
       {/* Footer (데스크탑에서만 표시) */}
-      <div className="hidden md:block h-16" />
-      <footer className="hidden md:block bg-white border-t border-slate-200 py-5 px-6 text-center text-xs text-slate-400 mb-16">
+      <footer className="hidden md:block bg-white border-t border-slate-200 py-5 px-6 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="font-bold text-slate-600">LottoLab &copy; 2026</span>
           <p className="max-w-md text-slate-400 text-[11px] leading-4">
