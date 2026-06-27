@@ -34,10 +34,10 @@ const TAB_META: Record<GatedTab, TabMeta> = {
 };
 
 const TAB_ICONS: Record<GatedTab, React.ReactNode> = {
-  locker: <FolderHeart className="w-6 h-6 text-blue-400" />,
-  stats: <TrendingUp className="w-6 h-6 text-blue-400" />,
-  simulator: <Play className="w-6 h-6 text-blue-400" />,
-  dream: <Brain className="w-6 h-6 text-blue-400" />,
+  locker: <FolderHeart className="w-6 h-6 text-indigo-600" />,
+  stats: <TrendingUp className="w-6 h-6 text-indigo-600" />,
+  simulator: <Play className="w-6 h-6 text-indigo-600" />,
+  dream: <Brain className="w-6 h-6 text-indigo-600" />,
 };
 
 const FEATURE_ICONS = [BarChart2, Shuffle, Bookmark];
@@ -52,47 +52,40 @@ export default function LoginGateCard({ tab, onLogin }: Props) {
 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4">
-      <div className="w-full max-w-sm space-y-6">
-        {/* 잠금 아이콘 + 타이틀 */}
+      <div className="w-full max-w-sm space-y-5">
         <div className="text-center space-y-3">
           <div className="relative inline-flex">
-            <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center">
               {TAB_ICONS[tab]}
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-slate-950 border border-slate-700 flex items-center justify-center">
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm">
               <Lock className="w-3 h-3 text-slate-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">{meta.title}</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">{meta.description}</p>
+            <h3 className="text-base font-bold text-slate-900">{meta.title}</h3>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">{meta.description}</p>
           </div>
         </div>
 
-        {/* 기능 미리보기 */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-2.5">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">로그인 후 이용 가능</p>
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">로그인 후 이용 가능</p>
           {meta.features.map((feat, i) => {
             const Icon = FEATURE_ICONS[i % FEATURE_ICONS.length];
             return (
-              <div key={i} className="flex items-center gap-2.5 text-xs text-slate-300">
-                <Icon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <div key={i} className="flex items-center gap-2.5 text-xs text-slate-600">
+                <Icon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                 {feat}
               </div>
             );
           })}
         </div>
 
-        {/* CTA 버튼 */}
-        <button
-          onClick={onLogin}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-600/20"
-        >
+        <button onClick={onLogin}
+          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-xl text-sm font-bold transition-all shadow-sm">
           로그인 / 무료 회원가입
         </button>
-        <p className="text-center text-[10px] text-slate-500">
-          이미 계정이 있다면 이메일로 즉시 로그인할 수 있습니다.
-        </p>
+        <p className="text-center text-[10px] text-slate-400">이미 계정이 있다면 이메일로 즉시 로그인할 수 있습니다.</p>
       </div>
     </div>
   );
