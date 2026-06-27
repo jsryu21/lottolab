@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import Script from "next/script";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -28,21 +27,14 @@ import {
   LogOut,
   AlertCircle,
   Copy,
-  Trash2,
   Bookmark,
   CheckCircle,
   Sparkles,
   RefreshCw,
   Info,
-  Calendar,
-  DollarSign,
   TrendingDown,
   User,
   Sliders,
-  ShieldAlert,
-  CreditCard,
-  QrCode,
-  Award,
   Lock,
 } from "lucide-react";
 import LoginGateCard from "@/components/LoginGateCard";
@@ -54,7 +46,7 @@ import AdBanner from "@/components/AdBanner";
 const GATED_TABS = ["locker", "stats", "simulator", "dream"] as const;
 
 export default function LottoLabDashboard({ initialDraws }: { initialDraws: LottoDraw[] }) {
-  const { user, isLoading: authLoading, isLocalMode, isPro, proExpiresAt, refreshProStatus, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
+  const { user, isLoading: authLoading, isLocalMode, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
 
   // UI 상태 관리
   const [activeTab, setActiveTab] = useState<"generator" | "locker" | "stats" | "simulator" | "dream">("generator");
@@ -86,12 +78,7 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
   const [customMaxEndingSum, setCustomMaxEndingSum] = useState<number>(35);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
-  // 1.5 PRO 멤버십 및 수익화 관련 상태
-  const isProMember = isPro;
-  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
-  const [paymentPending, setPaymentPending] = useState<boolean>(false);
-
-  // 1.6 성적표 모달 관련 상태
+  // 1.5 성적표 모달 관련 상태
   const [reportTargetSet, setReportTargetSet] = useState<number[] | null>(null);
   const [performanceReport, setPerformanceReport] = useState<PerformanceReport | null>(null);
 
@@ -574,74 +561,6 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
     const report = checkHistoricalPerformance(set, draws);
     setPerformanceReport(report);
   };
-  // 결제 후 서버 검증 + DB 반영
-  const activateProViaServer = async (imp_uid: string, merchant_uid: string) => {
-    if (!user) return;
-    const res = await fetch("/api/payment/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imp_uid, merchant_uid, userId: user.id }),
-    });
-    if (res.ok) {
-      await refreshProStatus();
-      toast.success("결제가 완료되었습니다! PRO 멤버십이 활성화되었습니다.");
-      setShowPaymentModal(false);
-    } else {
-      const d = await res.json();
-      toast.error(`결제 검증 실패: ${d.error ?? "알 수 없는 오류"}`);
-    }
-  };
-
-  // 멤버십 결제 시뮬레이션
-  const handleInitiatePayment = () => {
-    if (isLocalMode) {
-      setPaymentPending(true);
-      setTimeout(() => {
-        setPaymentPending(false);
-        localStorage.setItem("lottolab_pro", "true");
-        refreshProStatus();
-        toast.success("로컬 모드 테스트 결제(990원) 완료! PRO 멤버십이 활성화되었습니다.");
-        setShowPaymentModal(false);
-      }, 1500);
-    } else {
-      if (typeof window === "undefined" || !(window as any).IMP) {
-        setPaymentPending(true);
-        setTimeout(async () => {
-          setPaymentPending(false);
-          await activateProViaServer("test_imp_uid", `merchant_${Date.now()}`);
-        }, 1200);
-        return;
-      }
-
-      const { IMP } = window as any;
-      IMP.init("imp36712356");
-
-      const merchant_uid = `merchant_${Date.now()}`;
-      IMP.request_pay({
-        pg: "kakaopay.TC00000000",
-        pay_method: "card",
-        merchant_uid,
-        name: "LottoLab PRO 멤버십 (1개월)",
-        amount: 990,
-        buyer_email: user?.email || "test@lottolab.com",
-        buyer_name: "로또랩후원자",
-      }, async function (rsp: any) {
-        if (rsp.success) {
-          await activateProViaServer(rsp.imp_uid, merchant_uid);
-        } else {
-          toast.error(`결제에 실패하였습니다: ${rsp.error_msg}`);
-        }
-      });
-    }
-  };
-
-  const handleCancelMembership = async () => {
-    if (isLocalMode) localStorage.removeItem("lottolab_pro");
-    await refreshProStatus();
-    toast("PRO 멤버십 후원이 해제되었습니다. 일반 등급으로 전환됩니다.");
-  };
-
-
   // --- 시뮬레이터 실행 ---
   const runSimulation = () => {
     if (!selectedSimSet) return;
@@ -815,7 +734,6 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans antialiased">
-      <Script src="https://cdn.iamport.kr/v1/iamport.js" strategy="lazyOnload" />
       {/* 1. Header & Navigation */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-lg px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -916,22 +834,6 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
 
           {/* User Auth Info */}
           <div className="flex items-center gap-3">
-            {isProMember ? (
-              <button
-                onClick={() => setShowPaymentModal(true)}
-                className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-amber-950 font-bold border border-yellow-300 shadow-[0_0_10px_rgba(245,158,11,0.3)] hover:scale-105 transition-transform"
-              >
-                <Award className="w-3.5 h-3.5" /> PRO 회원
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowPaymentModal(true)}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)] hover:scale-105 active:scale-95 transition-all"
-              >
-                <DollarSign className="w-3 h-3" /> 후원 (990원)
-              </button>
-            )}
-
             {authLoading ? (
               <span className="text-xs text-slate-500">인증 복구 중...</span>
             ) : user ? (
@@ -979,20 +881,6 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
             </div>
           </div>
         )}
-
-        {/* PRO 만료 D-3 경고 배너 */}
-        {isProMember && proExpiresAt && (() => {
-          const daysLeft = Math.ceil((new Date(proExpiresAt).getTime() - Date.now()) / 86400000);
-          return daysLeft <= 3 && daysLeft > 0 ? (
-            <div className="mb-6 p-3 bg-rose-950/40 border border-rose-800/50 rounded-lg text-xs text-rose-300 flex items-center gap-2.5">
-              <span className="font-bold shrink-0">PRO 만료 D-{daysLeft}</span>
-              <span>
-                PRO 멤버십이 <strong>{new Date(proExpiresAt).toLocaleDateString("ko-KR")}</strong>에 만료됩니다.
-                갱신하지 않으면 일반 등급으로 전환됩니다.
-              </span>
-            </div>
-          ) : null;
-        })()}
 
         {/* --- TAB: 번호 생성기 (Generator) --- */}
         {activeTab === "generator" && (
@@ -1413,8 +1301,8 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
                             </div>
                           </div>
 
-                          {/* 광고 지면: PRO 미가입 사용자에게 3세트마다 노출 */}
-                          {!isProMember && (idx + 1) % 3 === 0 && (
+                          {/* 광고 지면: 3세트마다 노출 */}
+                          {(idx + 1) % 3 === 0 && (
                             <div className="my-3">
                               <AdBanner
                                 adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_INLINE ?? ""}
@@ -1733,38 +1621,6 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
 
       </main>
 
-      {/* 2.5 Footer Ad Banner (PRO 멤버가 아닐 때 노출) */}
-      {!isProMember && (
-        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 md:px-8 mb-6">
-          <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden shadow-md">
-            {/* Background glowing effect */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -z-10" />
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-blue-950/60 border border-blue-900/50 rounded-lg text-blue-400 shrink-0">
-                <Sparkles className="w-5 h-5 animate-pulse" />
-              </div>
-              <div className="text-left">
-                <span className="text-[9px] px-1.5 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded font-semibold tracking-wider uppercase inline-block mb-1">
-                  SPONSORED ADVERTISEMENT
-                </span>
-                <h4 className="text-xs font-bold text-slate-200">
-                  로또랩 프리미엄 분석 솔루션 - LottoLab PRO
-                </h4>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  한 달 커피값보다 저렴한 990원 후원으로 모든 광고를 영구 제거하고 더욱 정밀한 번호를 생성해보세요.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowPaymentModal(true)}
-              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition-all active:scale-95 shadow-md shadow-blue-600/10 shrink-0"
-            >
-              광고 제거하기 (월 990원)
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* 3. Footer */}
       <footer className="bg-slate-950 border-t border-slate-900 py-6 px-6 text-center text-xs text-slate-500 mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -2078,142 +1934,6 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
             >
               확인 완료
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* 6. Pro Support & Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl relative">
-            {/* 닫기 버튼 */}
-            <button
-              onClick={() => setShowPaymentModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white text-xl font-bold"
-            >
-              &times;
-            </button>
-
-            {/* 타이틀 */}
-            <div className="text-center mb-5">
-              <span className="text-[10px] font-extrabold text-amber-400 px-2 py-0.5 rounded bg-amber-950 border border-amber-900/60 inline-block mb-2 uppercase tracking-wide animate-pulse">
-                Premium Support
-              </span>
-              <h3 className="text-lg font-bold text-white mb-1">로또랩 PRO 후원 & 멤버십</h3>
-              <p className="text-xs text-slate-400">
-                로또랩의 독립 연구 및 서버 유지를 지원하고 프리미엄 혜택을 누리세요.
-              </p>
-            </div>
-
-            {/* 혜택 카드 */}
-            <div className="mb-5 bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2 text-xs">
-              <span className="font-bold text-slate-300 block mb-1">PRO 멤버십 혜택</span>
-              <div className="flex items-center gap-2 text-slate-400">
-                <CheckCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span>웹사이트 내 모든 광고(리스트 광고, 푸터 광고) 완전 제거</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-400">
-                <CheckCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span>계정 프로필 및 화면 상단 황금빛 PRO 전용 배지 활성화</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-400">
-                <CheckCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span>향후 제공될 고급 분석 알고리즘 우선권 제공</span>
-              </div>
-            </div>
-
-            {isProMember ? (
-              /* PRO 회원인 경우: 해지하기 */
-              <div className="space-y-4 text-center">
-                <div className="p-4 bg-amber-950/20 border border-amber-900/40 rounded-lg">
-                  <Award className="w-8 h-8 text-amber-400 mx-auto mb-2 animate-bounce" />
-                  <p className="text-sm font-bold text-amber-300">현재 PRO 멤버십 활성 상태입니다</p>
-                  <p className="text-[11px] text-slate-400 mt-1">로또랩 연구개발을 후원해 주셔서 진심으로 감사드립니다.</p>
-                </div>
-                
-                <button
-                  onClick={handleCancelMembership}
-                  className="w-full py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-rose-400 hover:text-rose-300 rounded text-xs font-bold transition-all"
-                >
-                  멤버십 구독 해지하기
-                </button>
-              </div>
-            ) : (
-              /* PRO 회원이 아닌 경우: 결제/후원 선택 */
-              <div className="space-y-4">
-                
-                {/* 1. 포트원 결제 */}
-                <div className="p-4 bg-slate-950 border border-slate-850 rounded-lg hover:border-slate-800 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-blue-400" />
-                      <span className="text-xs font-bold text-slate-200">PortOne 정기 후원 결제</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">월 990원</span>
-                  </div>
-                  <button
-                    onClick={handleInitiatePayment}
-                    disabled={paymentPending}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded text-xs font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
-                  >
-                    {paymentPending ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        결제 모듈 호출 중...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-3.5 h-3.5" />
-                        정기 구독 결제창 열기
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* 2. 카카오페이 / 계좌 송금 후원 */}
-                <div className="p-4 bg-slate-950 border border-slate-850 rounded-lg hover:border-slate-800 transition-all">
-                  <div className="flex items-center gap-2 mb-3">
-                    <QrCode className="w-4 h-4 text-amber-500" />
-                    <span className="text-xs font-bold text-slate-200">카카오페이 / 계좌로 직접 후원</span>
-                  </div>
-                  
-                  {/* QR 코드 모의 화면 */}
-                  <div className="flex flex-col sm:flex-row items-center gap-3 bg-slate-900 p-2.5 rounded border border-slate-800/80">
-                    <div className="w-20 h-20 bg-white p-1 rounded shrink-0 flex items-center justify-center relative">
-                      {/* QR Mockup using CSS grid/shapes */}
-                      <div className="w-full h-full bg-slate-900 flex items-center justify-center text-white text-[9px] font-bold text-center">
-                        KAKAO PAY
-                        <br />
-                        QR CODE
-                      </div>
-                    </div>
-                    <div className="text-left space-y-1">
-                      <p className="text-[10px] text-amber-400 font-bold">카카오페이 일시 송금 지원</p>
-                      <p className="text-[10px] text-slate-400">
-                        좌측 QR을 모바일 카메라로 스캔하거나 아래 가상 계좌로 원하시는 금액만큼 1회성 커피값 후원이 가능합니다.
-                      </p>
-                      <p className="text-[10px] text-slate-300 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-900 inline-block">
-                        국민은행 990-2026-LOTTOLAB
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={async () => {
-                      await activateProViaServer("honorware_manual", `honorware_${Date.now()}`);
-                    }}
-                    className="w-full mt-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-800 rounded text-[11px] font-bold transition-all"
-                  >
-                    송금/후원 완료 후 PRO 뱃지 켜기
-                  </button>
-                </div>
-
-              </div>
-            )}
-
-            <div className="mt-4 text-center text-[10px] text-slate-500">
-              * 포트원 결제는 테스트 모드(가상 결제)로 동작하며 실제 비용이 청구되지 않습니다.
-            </div>
           </div>
         </div>
       )}

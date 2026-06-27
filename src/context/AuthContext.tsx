@@ -12,9 +12,6 @@ interface AuthContextType {
   user: UserSession | null;
   isLoading: boolean;
   isLocalMode: boolean;
-  isPro: boolean;
-  proExpiresAt: string | null;
-  refreshProStatus: () => Promise<void>;
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, pass: string) => Promise<{ success: boolean; requiresOtp?: boolean; error?: string }>;
   verifyOtp: (email: string, token: string) => Promise<{ success: boolean; error?: string }>;
@@ -27,38 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPro, setIsPro] = useState(false);
-  const [proExpiresAt, setProExpiresAt] = useState<string | null>(null);
   const isLocalMode = !isSupabaseConfigured;
-
-  const fetchProStatus = async (userId: string) => {
-    if (isLocalMode) {
-      setIsPro(localStorage.getItem("lottolab_pro") === "true");
-      return;
-    }
-    try {
-      const { data } = await supabase
-        .from("profiles")
-        .select("is_pro, pro_expires_at")
-        .eq("id", userId)
-        .single();
-      if (data) {
-        const notExpired =
-          !data.pro_expires_at || new Date(data.pro_expires_at) > new Date();
-        setIsPro(data.is_pro && notExpired);
-        setProExpiresAt(data.pro_expires_at ?? null);
-      } else {
-        setIsPro(false);
-        setProExpiresAt(null);
-      }
-    } catch {
-      setIsPro(false);
-    }
-  };
-
-  const refreshProStatus = async () => {
-    if (user) await fetchProStatus(user.id);
-  };
 
   useEffect(() => {
     if (isLocalMode) {
@@ -67,7 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const u = JSON.parse(savedSession) as UserSession;
           setUser(u);
-          fetchProStatus(u.id);
         } catch {
           localStorage.removeItem("lottolab_session");
         }
@@ -78,9 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
-            const u = { id: session.user.id, email: session.user.email || "" };
-            setUser(u);
-            await fetchProStatus(u.id);
+            setUser({ id: session.user.id, email: session.user.email || "" });
           }
         } catch (error) {
           console.error("Supabase session restore error:", error);
@@ -94,12 +57,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (_event, session) => {
           if (session?.user) {
-            const u = { id: session.user.id, email: session.user.email || "" };
-            setUser(u);
-            await fetchProStatus(u.id);
+            setUser({ id: session.user.id, email: session.user.email || "" });
           } else {
             setUser(null);
-            setIsPro(false);
           }
           setIsLoading(false);
         }
@@ -115,7 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const mockUser: UserSession = { id: "mock-user-uuid-12345", email };
       localStorage.setItem("lottolab_session", JSON.stringify(mockUser));
       setUser(mockUser);
-      fetchProStatus(mockUser.id);
       return { success: true };
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
@@ -158,12 +117,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
     }
     setUser(null);
-    setIsPro(false);
-    setProExpiresAt(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isLocalMode, isPro, proExpiresAt, refreshProStatus, login, signUp, verifyOtp, resendOtp, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isLocalMode, login, signUp, verifyOtp, resendOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );
