@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (savedSession) {
         try {
           const u = JSON.parse(savedSession) as UserSession;
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setUser(u);
         } catch {
           localStorage.removeItem("lottolab_session");
@@ -67,7 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return () => { subscription.unsubscribe(); };
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLocalMode]);
 
   const login = async (email: string, pass: string) => {

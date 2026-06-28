@@ -106,11 +106,11 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
   const [dreamHistoryLoading, setDreamHistoryLoading] = useState(false);
 
   const getFixedNumbers = useCallback(() =>
-    Object.entries(gridModes).filter(([_, m]) => m === "fixed").map(([n]) => parseInt(n, 10)).sort((a, b) => a - b),
+    Object.entries(gridModes).filter(([, m]) => m === "fixed").map(([n]) => parseInt(n, 10)).sort((a, b) => a - b),
   [gridModes]);
 
   const getExcludedNumbers = useCallback(() =>
-    Object.entries(gridModes).filter(([_, m]) => m === "excluded").map(([n]) => parseInt(n, 10)).sort((a, b) => a - b),
+    Object.entries(gridModes).filter(([, m]) => m === "excluded").map(([n]) => parseInt(n, 10)).sort((a, b) => a - b),
   [gridModes]);
 
   const loadSavedNumbers = useCallback(async () => {
@@ -144,7 +144,18 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
         setIsUsingMockData(false);
       } else {
         setDraws(mockLottoDraws); setIsUsingMockData(true);
-        if (!crawlAttempted.current) { crawlAttempted.current = true; fetch("/api/crawl").then(() => loadLottoDraws()).catch(() => {}); }
+        if (!crawlAttempted.current) {
+          crawlAttempted.current = true;
+          fetch("/api/crawl")
+            .then(async () => {
+              const { data: fresh } = await supabase.from("draws").select("*").order("drw_no", { ascending: false });
+              if (fresh && fresh.length > 0) {
+                setDraws(fresh.map((d) => ({ drwNo: Number(d.drw_no), drwNoDate: d.drw_no_date, no1: d.no1, no2: d.no2, no3: d.no3, no4: d.no4, no5: d.no5, no6: d.no6, bonusNo: d.bonus_no, totSellAmnt: d.tot_sell_amnt ? Number(d.tot_sell_amnt) : undefined, firstWinAmnt: d.first_win_amnt ? Number(d.first_win_amnt) : undefined, firstPrzWnerCo: d.first_prz_wner_co ? Number(d.first_prz_wner_co) : undefined })));
+                setIsUsingMockData(false);
+              }
+            })
+            .catch(() => {});
+        }
       }
     } catch { setDraws(mockLottoDraws); setIsUsingMockData(true); }
     finally { setIsFetchingDraws(false); }
@@ -159,7 +170,11 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
     setShowAuthModal(false); setAuthError(""); setAuthSuccessMsg(""); setAuthStep("form"); setOtpCode(""); setOtpCountdown(0); setOtpResendCooldown(0);
   };
 
-  useEffect(() => { loadSavedNumbers(); loadLottoDraws(); }, [loadSavedNumbers, loadLottoDraws, user]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadSavedNumbers();
+    void loadLottoDraws();
+  }, [loadSavedNumbers, loadLottoDraws, user]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setAuthError(""); setAuthSuccessMsg(""); setAuthPending(true);
@@ -291,7 +306,10 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
     } catch {} finally { setDreamHistoryLoading(false); }
   }, []);
 
-  useEffect(() => { if (activeTab === "dream" && user?.id) loadDreamHistory(user.id); }, [activeTab, user, loadDreamHistory]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (activeTab === "dream" && user?.id) void loadDreamHistory(user.id);
+  }, [activeTab, user, loadDreamHistory]);
 
   const handleDreamInterpret = async () => {
     if (!dreamInput.trim()) return; setDreamLoading(true); setDreamSaveSuccess(false); setDreamResult(null);
