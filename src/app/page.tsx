@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import Script from "next/script";
 import { LottoDraw, mockLottoDraws } from "@/lib/lotto";
 import DashboardClient from "@/components/DashboardClient";
+
+const ADSENSE_CLIENT_ID = "ca-pub-4909104591449651";
 
 // 1시간마다 ISR 갱신 (로또 추첨은 주 1회이므로 충분)
 export const revalidate = 3600;
@@ -49,5 +52,15 @@ async function fetchInitialDraws(): Promise<LottoDraw[]> {
 
 export default async function Page() {
   const initialDraws = await fetchInitialDraws();
-  return <DashboardClient initialDraws={initialDraws} />;
+  return (
+    <>
+      <Script
+        async
+        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
+      <DashboardClient initialDraws={initialDraws} />
+    </>
+  );
 }
