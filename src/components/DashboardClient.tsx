@@ -78,6 +78,10 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
   const [memoText, setMemoText] = useState("");
 
+  // 공지사항
+  const [notices, setNotices] = useState<{ id: string; title: string; content: string }[]>([]);
+  const [dismissedNotices, setDismissedNotices] = useState<string[]>([]);
+
   // 3. 통계
   const [draws, setDraws] = useState<LottoDraw[]>(initialDraws);
   const [isFetchingDraws, setIsFetchingDraws] = useState(false);
@@ -177,6 +181,28 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
     void loadSavedNumbers();
     void loadLottoDraws();
   }, [loadSavedNumbers, loadLottoDraws, user]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    supabase.from("notices").select("id, title, content").eq("is_active", true).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setNotices(data); });
+    const dismissed = JSON.parse(localStorage.getItem("dismissed_notices") ?? "[]") as string[];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDismissedNotices(dismissed);
+  }, []);
+
+  const handleTabChange = (id: typeof activeTab) => {
+    setActiveTab(id);
+    if (typeof window !== "undefined" && typeof window.gtag === "function") {
+      window.gtag("event", "tab_view", { tab_name: id });
+    }
+  };
+
+  const handleDismissNotice = (id: string) => {
+    const updated = [...dismissedNotices, id];
+    setDismissedNotices(updated);
+    localStorage.setItem("dismissed_notices", JSON.stringify(updated));
+  };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setAuthError(""); setAuthSuccessMsg(""); setAuthPending(true);
@@ -423,7 +449,7 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
                   key={id}
                   onClick={() => {
                     if (isLocked) { setPendingTab(id); setShowAuthModal(true); return; }
-                    setActiveTab(id);
+                    handleTabChange(id);
                   }}
                   className={`flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 transition-all ${
                     isActive
@@ -443,6 +469,17 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
 
       {/* Main Content */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 py-5 pb-28 md:pb-8">
+
+        {/* 공지사항 배너 */}
+        {notices.filter((n) => !dismissedNotices.includes(n.id)).map((notice) => (
+          <div key={notice.id} className="mb-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-800 flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+              <div><span className="font-bold">{notice.title}</span> {notice.content}</div>
+            </div>
+            <button onClick={() => handleDismissNotice(notice.id)} className="text-indigo-400 hover:text-indigo-600 shrink-0 text-base leading-none">×</button>
+          </div>
+        ))}
 
         {/* Local Mode Banner */}
         {isLocalMode && (
