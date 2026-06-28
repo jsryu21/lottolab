@@ -25,7 +25,9 @@ import {
   User,
   Lock,
   ChevronDown,
+  Home,
 } from "lucide-react";
+import HomeTab from "@/components/tabs/HomeTab";
 import StatsTab from "@/components/tabs/StatsTab";
 import LockerTab from "@/components/tabs/LockerTab";
 import DreamTab from "@/components/tabs/DreamTab";
@@ -37,7 +39,7 @@ import ReportModal from "@/components/modals/ReportModal";
 export default function LottoLabDashboard({ initialDraws }: { initialDraws: LottoDraw[] }) {
   const { user, isLoading: authLoading, isLocalMode, login, signUp, verifyOtp, resendOtp, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<"generator" | "locker" | "stats" | "simulator" | "dream">("generator");
+  const [activeTab, setActiveTab] = useState<"home" | "generator" | "locker" | "stats" | "simulator" | "dream">("home");
   const [pendingTab, setPendingTab] = useState<typeof activeTab | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
@@ -340,6 +342,7 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
   }, [draws]);
 
   const TAB_NAV = [
+    { id: "home" as const, icon: Home, label: "홈", gated: false },
     { id: "generator" as const, icon: Dices, label: "번호 생성", gated: false },
     { id: "locker" as const, icon: FolderHeart, label: "보관함", gated: true },
     { id: "stats" as const, icon: TrendingUp, label: "통계", gated: true },
@@ -452,6 +455,10 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
           </div>
         )}
 
+        {activeTab === "home" && (
+          <HomeTab draws={draws} />
+        )}
+
         {activeTab === "generator" && (
           <GeneratorTab
             user={user}
@@ -557,7 +564,7 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
 
       {/* Bottom Navigation Bar (모바일 전용) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
-        <div className="max-w-7xl mx-auto flex items-center justify-around px-2 py-1">
+        <div className="max-w-7xl mx-auto flex items-center overflow-x-auto scrollbar-hide px-1 py-1 gap-0.5">
           {TAB_NAV.map(({ id, icon: Icon, label, gated }) => {
             const isActive = activeTab === id;
             const isLocked = gated && !user;
@@ -568,7 +575,7 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
                   if (isLocked) { setPendingTab(id); setShowAuthModal(true); return; }
                   setActiveTab(id);
                 }}
-                className={`relative flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-all min-w-[56px] ${
+                className={`relative flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-all flex-1 min-w-[52px] ${
                   isActive ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"
                 }`}
               >
