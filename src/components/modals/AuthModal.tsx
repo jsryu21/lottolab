@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { KeyRound, AlertCircle, CheckCircle, X } from "lucide-react";
+import React, { useState } from "react";
+import { KeyRound, AlertCircle, CheckCircle, X, Mail, ChevronDown } from "lucide-react";
 
 interface AuthModalProps {
   isSignUpMode: boolean;
@@ -12,7 +12,6 @@ interface AuthModalProps {
   authPending: boolean;
   authStep: "form" | "otp";
   otpCode: string;
-  otpCountdown: number;
   otpResendCooldown: number;
   isLocalMode: boolean;
   setIsSignUpMode: (v: boolean) => void;
@@ -24,7 +23,6 @@ interface AuthModalProps {
   onSubmit: (e: React.FormEvent) => void;
   onOtpVerify: () => void;
   onResendOtp: () => void;
-  formatCountdown: (sec: number) => string;
   onBackToForm: () => void;
 }
 
@@ -37,7 +35,6 @@ export default function AuthModal({
   authPending,
   authStep,
   otpCode,
-  otpCountdown,
   otpResendCooldown,
   isLocalMode,
   setIsSignUpMode,
@@ -49,9 +46,10 @@ export default function AuthModal({
   onSubmit,
   onOtpVerify,
   onResendOtp,
-  formatCountdown,
   onBackToForm,
 }: AuthModalProps) {
+  const [showOtpInput, setShowOtpInput] = useState(false);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl relative overflow-hidden">
@@ -73,10 +71,7 @@ export default function AuthModal({
                   <KeyRound className="w-5 h-5 text-indigo-600" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mb-1">이메일 인증</h3>
-                <p className="text-xs text-slate-500">
-                  <span className="text-indigo-600 font-semibold">{authEmail}</span>으로<br />
-                  6자리 인증 코드를 발송했습니다.
-                </p>
+                <p className="text-xs text-slate-500">메일함을 확인하고 인증 링크를 클릭해 주세요.</p>
               </>
             ) : (
               <>
@@ -109,42 +104,59 @@ export default function AuthModal({
 
           {authStep === "otp" ? (
             <div className="space-y-4">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-2 text-center">인증 코드 6자리 입력</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  autoFocus
-                  value={otpCode}
-                  onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, "")); setAuthError(""); }}
-                  onKeyDown={(e) => e.key === "Enter" && onOtpVerify()}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-2xl text-center text-slate-900 tracking-[0.6em] font-bold focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 placeholder-slate-300"
-                  placeholder="000000"
-                />
+              {/* 메인: 이메일 링크 클릭 안내 */}
+              <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 text-center space-y-3">
+                <div className="w-12 h-12 rounded-xl bg-white border border-indigo-200 flex items-center justify-center mx-auto shadow-sm">
+                  <Mail className="w-6 h-6 text-indigo-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-indigo-800 mb-1">
+                    <span className="font-extrabold">{authEmail}</span> 으로<br />인증 메일을 발송했습니다.
+                  </p>
+                  <p className="text-[11px] text-indigo-600">메일함을 열어 <strong>인증 링크</strong>를 클릭하면<br />자동으로 로그인됩니다.</p>
+                </div>
+                <p className="text-[10px] text-indigo-400">링크를 클릭하면 이 창은 자동으로 닫힙니다.</p>
               </div>
+
+              {/* 재발송 + 돌아가기 */}
               <div className="flex items-center justify-between text-xs px-1">
-                <span className={`font-mono font-bold ${otpCountdown <= 60 ? "text-rose-500" : "text-slate-500"}`}>
-                  {otpCountdown > 0 ? `⏱ ${formatCountdown(otpCountdown)} 후 만료` : "코드가 만료되었습니다"}
-                </span>
+                <button type="button" onClick={onBackToForm} className="text-slate-400 hover:text-slate-600 transition-colors">
+                  ← 돌아가기
+                </button>
                 <button type="button" onClick={onResendOtp} disabled={otpResendCooldown > 0 || authPending}
                   className="text-indigo-600 hover:text-indigo-700 disabled:text-slate-300 font-semibold transition-colors">
-                  {otpResendCooldown > 0 ? `재발송 (${otpResendCooldown}s)` : "코드 재발송"}
+                  {otpResendCooldown > 0 ? `재발송 (${otpResendCooldown}s)` : "메일 재발송"}
                 </button>
               </div>
-              <button type="button" onClick={onOtpVerify} disabled={otpCode.length !== 6 || authPending}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-xl text-sm font-bold transition-all active:scale-[0.98]">
-                {authPending ? "인증 확인 중..." : "인증 완료하기"}
-              </button>
-              <div className="text-center">
-                <button type="button" onClick={onBackToForm} className="text-[11px] text-slate-400 hover:text-slate-600 transition-colors">
-                  ← 이메일 입력으로 돌아가기
-                </button>
-              </div>
+
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-[10px] text-slate-400 text-center">
-                이메일이 오지 않으면 스팸 폴더를 확인해 주세요.
+                메일이 오지 않으면 스팸 폴더를 확인해 주세요.
               </div>
+
+              {/* 코드 직접 입력 (접기/펼치기) */}
+              <button type="button" onClick={() => setShowOtpInput(v => !v)}
+                className="w-full flex items-center justify-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 transition-colors">
+                <ChevronDown className={`w-3 h-3 transition-transform ${showOtpInput ? "rotate-180" : ""}`} />
+                코드를 직접 입력할게요
+              </button>
+
+              {showOtpInput && (
+                <div className="space-y-3 pt-1">
+                  <input
+                    type="text" inputMode="numeric" pattern="[0-9]*"
+                    maxLength={6} autoFocus
+                    value={otpCode}
+                    onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, "")); setAuthError(""); }}
+                    onKeyDown={(e) => e.key === "Enter" && onOtpVerify()}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-2xl text-center text-slate-900 tracking-[0.6em] font-bold focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 placeholder-slate-300"
+                    placeholder="000000"
+                  />
+                  <button type="button" onClick={onOtpVerify} disabled={otpCode.length !== 6 || authPending}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-xl text-sm font-bold transition-all active:scale-[0.98]">
+                    {authPending ? "확인 중..." : "코드로 인증"}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <>

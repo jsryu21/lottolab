@@ -143,6 +143,36 @@ async function run() {
     end $$;
   `, "dream_logs INSERT 정책");
 
+  // 7. notices 테이블 생성
+  await execSQL(`
+    create table if not exists public.notices (
+      id         uuid default gen_random_uuid() primary key,
+      title      text not null,
+      content    text not null,
+      is_active  boolean default true not null,
+      created_at timestamptz default now() not null,
+      updated_at timestamptz default now() not null
+    );
+  `, "notices 테이블 생성");
+
+  await execSQL(
+    `alter table public.notices enable row level security;`,
+    "notices RLS 활성화"
+  );
+
+  await execSQL(`
+    do $$ begin
+      if not exists (
+        select 1 from pg_policies
+        where tablename = 'notices' and policyname = 'anyone can read active notices'
+      ) then
+        create policy "anyone can read active notices"
+          on public.notices for select
+          using (is_active = true);
+      end if;
+    end $$;
+  `, "notices SELECT 정책");
+
   console.log("\n🎉 마이그레이션 완료!");
 }
 
