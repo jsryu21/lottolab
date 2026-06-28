@@ -170,11 +170,14 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
   useEffect(() => { if (otpCountdown <= 0) return; const t = setTimeout(() => setOtpCountdown((c) => c - 1), 1000); return () => clearTimeout(t); }, [otpCountdown]);
   useEffect(() => { if (otpResendCooldown <= 0) return; const t = setTimeout(() => setOtpResendCooldown((c) => c - 1), 1000); return () => clearTimeout(t); }, [otpResendCooldown]);
 
-  const formatCountdown = (sec: number) => `${Math.floor(sec / 60).toString().padStart(2, "0")}:${(sec % 60).toString().padStart(2, "0")}`;
-
-  const resetAuthModal = () => {
+  const resetAuthModal = useCallback(() => {
     setShowAuthModal(false); setAuthError(""); setAuthSuccessMsg(""); setAuthStep("form"); setOtpCode(""); setOtpCountdown(0); setOtpResendCooldown(0);
-  };
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (user && showAuthModal) resetAuthModal();
+  }, [user, showAuthModal, resetAuthModal]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -653,7 +656,6 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
           authPending={authPending}
           authStep={authStep}
           otpCode={otpCode}
-          otpCountdown={otpCountdown}
           otpResendCooldown={otpResendCooldown}
           isLocalMode={isLocalMode}
           setIsSignUpMode={setIsSignUpMode}
@@ -665,7 +667,6 @@ export default function LottoLabDashboard({ initialDraws }: { initialDraws: Lott
           onSubmit={handleAuthSubmit}
           onOtpVerify={handleOtpVerify}
           onResendOtp={handleResendOtp}
-          formatCountdown={formatCountdown}
           onBackToForm={() => { setAuthStep("form"); setAuthError(""); setOtpCode(""); }}
         />
       )}
