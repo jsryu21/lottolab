@@ -90,7 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(mockUser);
       return { success: true };
     } else {
-      const { error } = await supabase.auth.signUp({ email, password: pass });
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: { emailRedirectTo: redirectTo },
+      });
       if (error) return { success: false, error: error.message };
       return { success: true, requiresOtp: true };
     }
@@ -105,7 +110,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resendOtp = async (email: string) => {
     if (isLocalMode) return { success: true };
-    const { error } = await supabase.auth.resend({ type: "signup", email });
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: redirectTo },
+    });
     if (error) return { success: false, error: error.message };
     return { success: true };
   };
